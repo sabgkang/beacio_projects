@@ -5,7 +5,7 @@ Beacio 測試與開發專案，包含使用 Arduino 框架的 ESP32 韌體，以
 ## 專案
 
 - `01-Test/`（test-01）：使用 ESP32-S3-N16R8 模擬 BLE 心率與電池裝置，供 iPhone Safari 搭配 Beacio 擴充功能測試。採用 Arduino 框架，開發板設定為 `esp32-s3-devkitc-1`，配置 16 MB Flash、8 MB OPI PSRAM，序列埠監控速率為 115200 baud。
-- [`02-Multy/`](02-Multy/README.md)（Multy）：自適應序列通訊網頁應用程式，提供 UART1/2、I2C1/2 與 SPI1/2 操作介面，支援 PC 與 iPhone 配置、明亮與深色主題。目前連線與資料傳輸皆為模擬，PWA 尚未啟用。
+- [`02-Multy/`](02-Multy/README.md)（Multy）：自適應序列通訊網頁應用程式，提供 UART1/2、I2C1/2 與 SPI1/2 操作介面，支援 PC 與 iPhone 配置、明亮與深色主題。PC 支援 Web Serial 選取及開啟序列埠；BLE 與通訊資料仍為模擬，PWA 尚未啟用。
 
 `01-Test/` 使用 `platformio.ini` 設定開發板、框架、相依套件及建置選項；`02-Multy/` 使用 Node.js 與 `package.json`，不需要 PlatformIO 或額外的執行期相依套件。
 
@@ -103,7 +103,8 @@ node server.js
 - UART 的 Baud rate、Data Bits、Parity 與 Stop 可分別設定，預設為 115200、8、N、1。Data Bits 提供 8／9，Parity 提供 N／Y，Stop 提供 1／0。
 - 每張卡片有最大化及還原圖示。PC 最大化後佔用六張卡片的區域；還原或按 Escape 可回到原配置，保留設定及資料。
 - 傳送欄位與接收資料會換行並隨內容增加高度，最大化及還原模式皆適用。Enter 換行，Ctrl+Enter 或 Cmd+Enter 傳送。Clear 與 Copy 各自作用於所屬卡片；I2C 僅提供 Write 按鈕。
-- **目前所有連線與傳輸皆為示範模擬，尚未接上真實 USB-serial 或 BLE 硬體。** 後續需定義 Multy 韌體的命令格式、通道操作及 BLE UUID，再替換 `public/transport.js` 中的示範介面。`01-Test` 的心率韌體尚未提供 UART／I2C／SPI 命令。
+- PC 選取 USB-serial 後，Connect 會開啟瀏覽器的 Web Serial 序列埠選取視窗，並依 UART1 設定開啟選取的埠；Disconnect 關閉該埠。需要桌面版 Chrome／Edge 及 HTTPS 或 localhost。連線時 UART1 需使用 8N1；9 資料位元、0 停止位元及未指定奇偶模式的 Y 選項會顯示說明。
+- **Web Serial 已可開啟真實序列埠，但 UART／I2C／SPI 硬體命令尚未實作；BLE 仍為模擬。** 開啟真實埠後會清除示範接收資料，傳送按鈕會說明缺少的整合，不會冒充硬體回應。後續需定義 Multy 韌體的命令格式、通道操作及 BLE UUID，再整合 `public/transport.js`。`01-Test` 的心率韌體尚未提供 UART／I2C／SPI 命令。
 - PWA 相關範本保留於 `pwa/`，不在伺服器公開目錄中。目前沒有啟用 manifest、service worker、離線快取或安裝提示。
 
 詳細操作與檔案說明請參閱 [`02-Multy/README.md`](02-Multy/README.md)。

@@ -1,13 +1,18 @@
 import { detectDevice, parseHex, formatBytes } from './core.js';
-import { DemoTransport } from './transport.js';
+import { DemoTransport, SerialTransport } from './transport.js';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 document.documentElement.dataset.device = device;
 const mobileLayout = matchMedia('(max-width: 760px)');
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
-const transport = new DemoTransport();
+const demoTransport = new DemoTransport();
+const serialTransport = new SerialTransport({ onDisconnect: () => {
+  updateConnection();
+  notify('Serial device disconnected.');
+} });
 let method = device === 'pc' ? 'serial' : 'ble';
+let transport = method === 'serial' ? serialTransport : demoTransport;
 let connecting = false;
 let selectedProtocol = 'uart';
 let selectedInstance = 1;
@@ -121,7 +126,7 @@ function showInputError(channel, message) {
 }
 async function exchange(channel, action) {
   if (channel.busy) return;
-  if (!transport.connected) { notify('Connect the demo device first.'); $('#connect').focus(); return; }
+  if (!transport.connected) { notify('Connect a device first.'); $('#connect').focus(); return; }
   let bytes = [];
   if (action !== 'read') {
     try { bytes = parseHex(channel.card.querySelector('.hex-input').value); showInputError(channel, ''); }
@@ -167,18 +172,21 @@ function updateConnection() {
     button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); button.disabled = unavailable || transport.connected || connecting;
   });
   $('#port-setting').hidden = method !== 'serial';
-  $('#serial-port').disabled = transport.connected;
+  $('#serial-port').textContent = serialTransport.label;
   $('#connect').textContent = transport.connected ? 'Disconnect' : 'Connect';
   $('#connect').disabled = connecting;
-  $('#connection-status').textContent = connecting ? (transport.connected ? 'Disconnecting…' : 'Connecting…') : transport.connected ? 'Connected · demo' : 'Disconnected';
+  $('#connection-status').textContent = connecting ? (transport.connected ? 'Disconnecting…' : 'Connecting…') : transport.connected ? (method === 'serial' ? 'Connected' : 'Connected · demo') : 'Disconnected';
   $('.connection-status').classList.toggle('connected', transport.connected);
-  $('.ready-status').innerHTML = `<span class="status-dot ready"></span>${transport.connected ? 'Demo device connected' : 'Ready for connection'}`;
+  $('.ready-status').innerHTML = `<span class="status-dot ready"></span>${transport.connected ? (method === 'serial' ? 'Serial port connected' : 'Demo device connected') : 'Ready for connection'}`;
+  $('.demo-note strong').textContent = method === 'serial' ? 'Web Serial' : 'Demo data';
+  $('.footer-detail').textContent = method === 'serial' ? ' · UART1 settings open the port. Hardware commands are not configured.' : ' · BLE communication is simulated.';
   $('#mobile-transport-name').textContent = method === 'ble' ? `${device === 'iphone' ? 'iPhone' : 'Mobile'} · BLE` : 'PC · USB-serial';
   $('.mobile-device-icon').textContent = method === 'ble' ? 'ᛒ' : '▣';
 }
 document.querySelectorAll('[data-transport]').forEach(button => button.addEventListener('click', () => {
   if (transport.connected || connecting || (device === 'iphone' && button.dataset.transport !== 'ble')) return;
   method = button.dataset.transport;
+  transport = method === 'serial' ? serialTransport : demoTransport;
   updateConnection();
 }));
 $('#connect').addEventListener('click', async () => {
@@ -186,10 +194,21 @@ $('#connect').addEventListener('click', async () => {
   connecting = true;
   updateConnection();
   try {
-    if (transport.connected) await transport.disconnect(); else await transport.connect(method);
-    notify(transport.connected ? 'Demo connected. Send, read, or transfer hexadecimal bytes.' : 'Demo device disconnected.');
+    if (transport.connected) {
+      await transport.disconnect();
+      notify(method === 'serial' ? 'Serial port closed.' : 'Demo device disconnected.');
+    } else if (method === 'serial') {
+      const settings = Object.fromEntries([...channels.get('uart1').card.querySelectorAll('select')].map(select => [select.id.split('-').pop(), select.value]));
+      await transport.connect(settings);
+      // Remove sample RX data so it cannot be mistaken for hardware responses.
+      for (const channel of channels.values()) { channel.bytes = []; renderLog(channel); }
+      notify('Serial port opened. Multy hardware commands are not configured yet.');
+    } else {
+      await transport.connect(method);
+      notify('Demo connected. Send, read, or transfer hexadecimal bytes.');
+    }
   } catch (error) {
-    notify(error.message);
+    notify(error.name === 'NotFoundError' ? 'No serial port selected.' : error.message);
   } finally {
     connecting = false;
     updateConnection();

@@ -21,7 +21,7 @@
     <section class="connection" aria-label="Connection settings">
       <div class="connection-choice"><span class="desktop-label">Connection</span><div class="transport-switch" role="group" aria-label="Connection method"><button class="transport active" data-transport="serial"><span class="transport-icon" aria-hidden="true">▣</span> PC · USB-serial</button><button class="transport" data-transport="ble"><span class="transport-icon" aria-hidden="true">ᛒ</span> iPhone · BLE</button></div></div>
       <div class="mobile-transport"><span class="mobile-device-icon" aria-hidden="true">ᛒ</span><div><strong id="mobile-transport-name">iPhone · BLE</strong><div id="mobile-status-slot"></div></div></div>
-      <label class="port-setting" id="port-setting">Serial port<select id="serial-port"><option value="demo">COM5 (demo)</option></select></label>
+      <div class="port-setting" id="port-setting"><span>Serial port</span><output id="serial-port">Select in Chrome</output></div>
       <button class="primary connect-button" id="connect">Connect</button>
       <span class="connection-status" role="status"><span class="status-dot"></span><span id="connection-status">Disconnected</span></span>
       <p class="connection-help">USB-C connection to PC · BLE via Multy app / extension</p>
