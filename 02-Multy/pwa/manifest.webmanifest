@@ -1,0 +1,12 @@
+{
+  "id": "/",
+  "name": "Multy",
+  "short_name": "Multy",
+  "description": "Serial communication assistant",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#071625",
+  "theme_color": "#071625",
+  "icons": [{ "src": "/icons/multy.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
