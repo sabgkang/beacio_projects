@@ -1,0 +1,25 @@
+#include <Arduino.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+
+void setup() {
+    Serial.begin(115200);
+    delay(2000);
+
+    Serial.println("=========================================");
+    Serial.printf(" (Heap): %d bytes\n", ESP.getFreeHeap());
+              
+    //   PSRAM 
+    Serial.printf(" PSRAM : %d bytes\n", ESP.getPsramSize());
+    Serial.printf(" PSRAM : %d bytes\n", ESP.getFreePsram());
+                    Serial.println("=========================================");
+                      
+                      //  BLE ...
+}
+
+void loop(){
+    Serial.print(".");
+    delay(10000);
+}
