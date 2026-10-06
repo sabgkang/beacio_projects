@@ -102,7 +102,7 @@ node server.js
 - PC 顯示六張通訊卡片；中等寬度改為兩欄，窄螢幕使用 UART／I2C／SPI 分頁及介面編號切換。
 - UART 的 Baud rate、Data Bits、Parity 與 Stop 可分別設定，預設為 115200、8、N、1。Data Bits 提供 8／9，Parity 提供 N／Y，Stop 提供 1／0。
 - 每張卡片有最大化及還原圖示。PC 最大化後佔用六張卡片的區域；還原或按 Escape 可回到原配置，保留設定及資料。
-- 傳送欄位與接收資料會換行並隨內容增加高度，最大化及還原模式皆適用。Enter 換行，Ctrl+Enter 或 Cmd+Enter 傳送。Clear 與 Copy 各自作用於所屬卡片；I2C 僅提供 Write 按鈕。
+- 傳送欄位與接收資料會換行並隨內容增加高度，最大化及還原模式皆適用。Enter 換行，Ctrl+Enter 或 Cmd+Enter 傳送。Clear 與 Copy 各自作用於所屬卡片；I2C 與 SPI 提供並排的 Read 與 Write 按鈕。
 - PC 選取 USB-serial 後，Connect 會開啟瀏覽器的 Web Serial 序列埠選取視窗，並依 UART1 設定開啟選取的埠；Disconnect 關閉該埠。需要桌面版 Chrome／Edge 及 HTTPS 或 localhost。連線時 UART1 需使用 8N1；9 資料位元、0 停止位元及未指定奇偶模式的 Y 選項會顯示說明。
 - **Web Serial 已可開啟真實序列埠，但 UART／I2C／SPI 硬體命令尚未實作；BLE 仍為模擬。** 開啟真實埠後會清除示範接收資料，傳送按鈕會說明缺少的整合，不會冒充硬體回應。後續需定義 Multy 韌體的命令格式、通道操作及 BLE UUID，再整合 `public/transport.js`。`01-Test` 的心率韌體尚未提供 UART／I2C／SPI 命令。
 - PWA 相關範本保留於 `pwa/`，不在伺服器公開目錄中。目前沒有啟用 manifest、service worker、離線快取或安裝提示。

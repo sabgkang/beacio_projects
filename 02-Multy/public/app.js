@@ -25,7 +25,7 @@ try { themePreference = localStorage.getItem('multy-theme'); } catch {}
 const definitions = {
   uart: { label: 'UART', icon: 'terminal', input: '48 65 6C 6C 6F', outputLabel: 'TX → Target', receiveLabel: 'RX ← Target', action: 'Send' },
   i2c: { label: 'I2C', icon: 'arrows', input: '00 A5 5A', outputLabel: 'OUT → Target (Write)', receiveLabel: 'IN ← Target (Read)', action: 'Write' },
-  spi: { label: 'SPI', icon: 'chip', input: '9F 00 00 00', outputLabel: 'OUT → Target (Transmit)', receiveLabel: 'IN ← Target (Receive)', action: 'Transfer' }
+  spi: { label: 'SPI', icon: 'chip', input: '9F 00 00 00', outputLabel: 'OUT → Target (Write)', receiveLabel: 'IN ← Target (Read)', action: 'Write' }
 };
 const icons = {
   terminal: '<rect x="3" y="4" width="22" height="19" rx="3"/><path d="m7 9 4 4-4 4m7 0h5"/>',
@@ -53,7 +53,7 @@ for (let instance = 1; instance <= 2; instance++) {
     card.dataset.protocol = protocol;
     card.dataset.instance = instance;
     card.setAttribute('aria-labelledby', `${id}-title`);
-    card.innerHTML = `<header class="card-header"><span class="interface-icon" aria-hidden="true"><svg viewBox="0 0 28 28">${icons[definition.icon]}</svg></span><div class="card-title"><h2 id="${id}-title">${definition.label}${instance}</h2></div></header><div class="settings ${protocol === 'uart' ? 'single' : ''}">${settings}</div><div class="io-grid"><form class="transmit"><label class="io-label" for="${id}-tx">${definition.outputLabel}</label><textarea id="${id}-tx" class="hex-input" rows="1" wrap="soft" aria-label="${definition.label}${instance} hexadecimal bytes" spellcheck="false" autocomplete="off" autocapitalize="characters" maxlength="767">${definition.input}</textarea><button class="primary" type="submit">${definition.action}</button><p class="input-error" id="${id}-error" role="alert" hidden></p></form><div class="receive"><div class="receive-heading"><span class="io-label">${definition.receiveLabel}</span><div class="log-actions"><button type="button" data-action="clear" aria-label="Clear ${definition.label}${instance} received data">Clear</button><button type="button" data-action="copy" aria-label="Copy ${definition.label}${instance} received data"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="5" width="10" height="12" rx="2"/><path d="M12 5V3H4v11h2"/></svg>Copy</button></div></div><div class="receive-data" tabindex="0" aria-label="${definition.label}${instance} received data"></div></div></div>`;
+    card.innerHTML = `<header class="card-header"><span class="interface-icon" aria-hidden="true"><svg viewBox="0 0 28 28">${icons[definition.icon]}</svg></span><div class="card-title"><h2 id="${id}-title">${definition.label}${instance}</h2></div></header><div class="settings ${protocol === 'uart' ? 'single' : ''}">${settings}</div><div class="io-grid"><form class="transmit">${protocol === 'uart' ? `<div class="transmit-heading"><label class="io-label" for="${id}-tx">${definition.outputLabel}</label><div class="transmit-actions"><button class="primary" type="submit">${definition.action}</button></div></div>` : `<div class="transmit-heading"><label class="io-label" for="${id}-tx">${definition.outputLabel}</label><div class="transmit-actions" role="group" aria-label="${definition.label}${instance} operations"><button class="primary" type="button" data-action="read">Read</button><button class="primary" type="submit">Write</button></div></div>`}<textarea id="${id}-tx" class="hex-input" rows="1" wrap="soft" aria-label="${definition.label}${instance} hexadecimal bytes" spellcheck="false" autocomplete="off" autocapitalize="characters" maxlength="767">${definition.input}</textarea><p class="input-error" id="${id}-error" role="alert" hidden></p></form><div class="receive"><div class="receive-heading"><span class="io-label">${definition.receiveLabel}</span><div class="log-actions"><button type="button" data-action="clear" aria-label="Clear ${definition.label}${instance} received data">Clear</button><button type="button" data-action="copy" aria-label="Copy ${definition.label}${instance} received data"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="5" width="10" height="12" rx="2"/><path d="M12 5V3H4v11h2"/></svg>Copy</button></div></div><div class="receive-data" tabindex="0" aria-label="${definition.label}${instance} received data"></div></div></div>`;
     $('#interface-panel').append(card);
     const cardTools = document.createElement('div');
     cardTools.className = 'card-tools';
@@ -78,6 +78,7 @@ for (let instance = 1; instance <= 2; instance++) {
     });
     renderLog(channel);
     card.querySelector('form').addEventListener('submit', event => { event.preventDefault(); exchange(channel, 'write'); });
+    card.querySelector('[data-action="read"]')?.addEventListener('click', () => exchange(channel, 'read'));
     const input = card.querySelector('.hex-input');
     input.addEventListener('input', () => { showInputError(channel, ''); resizeInput(input); });
     input.addEventListener('keydown', event => {
