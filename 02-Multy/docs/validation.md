@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 提交前完整回歸 24 項通過，沒有跳過；涵蓋最大化分組及 8／32-byte 切換 |
+| Node 自動測試 | 最新完整回歸 29 項通過，沒有跳過；涵蓋最大化分組、8／32-byte 切換、PM2 啟動與 Beacio 連線防禦 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -18,6 +18,8 @@ UART 介面更新：移除 Apply settings，設定變更自動套用；移除各
 自動測試涵蓋分段及合併訊息、UTF-8、長度限制、命令回覆配對、通知 ACK、逾時不重播、佇列優先順序、紀錄保留上限、USB 串流斷線清理、BLE 分段探測與相容模式、私有路徑限制，以及使用明確受信任測試 CA 的 HTTPS 連線。
 
 最大化 UART 的 TX／RX HEX 每 8 bytes 加入 ` - ` 分隔符。瀏覽器已確認 32-byte TX 有三個分隔符；測試涵蓋完整 256-byte 格式、移除分隔符後的資料一致性及還原一般卡片格式。RX 使用相同分組函式。
+
+Safari／Beacio 連線修正：在點擊時取得 Bluetooth API，不保存頁面載入時的啟動物件；保留直接使用者手勢、明列 optionalServices，並為裝置選擇與 GATT 步驟加入有界等待及狀態。測試涵蓋延遲 API、卡住的選擇視窗、同步權限錯誤與逾時後較晚完成的 GATT 清理。這些是自動化模擬驗證，尚未在使用者的 iPhone／Cloudflare 網域確認問題已解決；不將 CSP 延遲初始化判定為已證實的實機根因。
 
 桌面垂直對齊修正：統一設定標題區與控制項高度、TX 區最小高度及上下間距。1440 px 寬度下，淺色與深色主題的 UART／I2C／SPI 設定控制項、TX 輸入區及 RX 紀錄區，其上緣座標均一致。
 

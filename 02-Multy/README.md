@@ -81,6 +81,8 @@ TLS 必須同時設定 cert 與 key，HTTPS 預設 3443；沒有 TLS 時預設 H
 
 在 Safari 啟用 Beacio 擴充功能與網站權限，開啟 `https://<PC-LAN-IP>:3443`，按 Connect 選擇 Multy。原生 Safari 沒有此 BLE 工作流程；Beacio 缺少時介面會提示。LAN IP 變更需重新產生伺服器憑證；CA 不變時不必重裝根憑證。
 
+Cloudflare Tunnel 對外提供 HTTPS 時也可使用該網域；Beacio 必須獲准存取該網站，且首次使用可能需要另行啟用 Bluetooth。Multy 在按 Connect 當下取得最新 Bluetooth API，避免保存較早載入的擴充功能啟動物件。狀態會區分裝置選擇、GATT 連線、服務探索、通知訂閱及握手；裝置選擇等待超過 60 秒或單一步驟 GATT 超過 15 秒會顯示錯誤，請關閉選擇視窗、重新載入 Safari 後再試。擴充功能網站權限與 Bluetooth 首次啟用是不同步驟；請依 [Beacio 文件](https://beacio.com/docs)操作。
+
 ## 連線與錯誤處理
 
 - 一次只允許一個控制端，兩種傳輸共用控制權；每五秒心跳，20 秒失聯釋放。

@@ -87,21 +87,34 @@ export class SerialTransport extends DeviceTransport {
 }
 
 export class BleTransport extends DeviceTransport {
-  constructor({ bluetooth = globalThis.navigator?.bluetooth, secure = globalThis.isSecureContext, crypto = globalThis.crypto, ...callbacks } = {}) {
-    super(callbacks); Object.assign(this, { bluetooth, secure, crypto }); this.compatibility = new Set(); this.chunkBytes = 20;
+  constructor({ bluetooth, getBluetooth, secure = globalThis.isSecureContext, crypto = globalThis.crypto, pickerTimeoutMs = 60000, gattTimeoutMs = 15000, ...callbacks } = {}) {
+    super(callbacks); Object.assign(this, { bluetooth, secure, crypto, pickerTimeoutMs, gattTimeoutMs }); this.compatibility = new Set(); this.chunkBytes = 20;
+    // Beacio may replace its bootstrap API after this page's modules run.
+    this.getBluetooth = getBluetooth || (() => this.bluetooth === undefined ? globalThis.navigator?.bluetooth : this.bluetooth);
     this.onNotification = event => { const value = event.target.value; this.client.framer.push(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)); };
     this.onLinkLost = () => { if (this.isOpen) this.abort(new Error('BLE device disconnected.')); };
   }
   async connect() {
     if (!this.secure) throw new Error('BLE needs HTTPS. Open the trusted HTTPS address on iPhone.');
-    if (!this.bluetooth) throw new Error('Enable Beacio and its site permission in iPhone Safari, or use desktop Chrome / Edge.');
-    this.setState('Connecting'); const selection = this.bluetooth.requestDevice({ filters: [{ services: [UUID.service] }] });
+    const bluetooth = this.getBluetooth();
+    if (!bluetooth?.requestDevice) throw new Error('Enable Beacio for this website, reload Safari, then tap Connect again.');
+    if (this.isOpen) throw new Error('Disconnect the current device first.');
+    const attempt = { cancelled: false };
+    this.setState('Selecting BLE device');
     try {
-      this.device = await selection; this.chunkBytes = 20;
+      // Call synchronously in the click gesture; never await extension detection first.
+      const selection = bluetooth.requestDevice({ filters: [{ services: [UUID.service] }], optionalServices: [UUID.service] });
+      this.device = await this.waitStage(selection, 'BLE picker did not finish. Check Beacio activation for this website; close any picker and reload Safari.', this.pickerTimeoutMs);
+      this.chunkBytes = 20;
       this.device.addEventListener('gattserverdisconnected', this.onLinkLost);
-      const server = await this.device.gatt.connect(); this.isOpen = true;
-      const service = await server.getPrimaryService(UUID.service);
-      this.command = await service.getCharacteristic(UUID.command); this.output = await service.getCharacteristic(UUID.output);
+      this.setState('Connecting BLE GATT');
+      const connection = this.device.gatt.connect();
+      Promise.resolve(connection).then(server => { if (attempt.cancelled) server.disconnect(); }, () => {});
+      const server = await this.waitStage(connection, 'BLE GATT connection timed out.'); this.isOpen = true;
+      this.setState('Discovering BLE service');
+      const service = await this.waitStage(server.getPrimaryService(UUID.service), 'Multy BLE service discovery timed out.');
+      this.command = await this.waitStage(service.getCharacteristic(UUID.command), 'BLE command discovery timed out.');
+      this.output = await this.waitStage(service.getCharacteristic(UUID.output), 'BLE notification discovery timed out.');
       this.writer = new FrameWriter(async bytes => {
         for (let offset = 0; offset < bytes.length; offset += this.chunkBytes) {
           if (!this.isOpen) throw new Error('BLE disconnected.');
@@ -109,12 +122,21 @@ export class BleTransport extends DeviceTransport {
         }
       });
       this.makeClient(seq => this.writer.write(encodeFrame({ v: 1, op: 'transport.ack', seq }), true));
-      this.output.addEventListener('characteristicvaluechanged', this.onNotification); await this.output.startNotifications();
+      this.setState('Subscribing BLE notifications');
+      this.output.addEventListener('characteristicvaluechanged', this.onNotification);
+      await this.waitStage(this.output.startNotifications(), 'BLE notification subscription timed out.');
       await this.handshake();
     } catch (error) {
+      attempt.cancelled = true;
       if (this.device && this.probing) this.compatibility.add(this.device.id);
-      this.probing = false; await this.closeLink(error); this.setState('Error'); throw error;
+      this.probing = false; await this.closeLink(error); this.setState(`Error: ${error.message}`); throw error;
     }
+  }
+  async waitStage(operation, message, timeoutMs = this.gattTimeoutMs) {
+    let timer;
+    try {
+      return await Promise.race([operation, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeoutMs); })]);
+    } finally { clearTimeout(timer); }
   }
   async negotiate() {
     if (this.compatibility.has(this.device.id)) return;
