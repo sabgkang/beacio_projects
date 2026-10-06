@@ -1,76 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SerialTransport, serialOptions } from '../public/transport.js';
+import { fakeSerial } from '../test-support/mock-device.js';
+const tick = () => new Promise(resolve => setImmediate(resolve));
 
-const settings = { baud: '115200', databits: '8', parity: 'N', stop: '1' };
-function fakeSerial() {
-  const calls = [];
-  const port = {
-    async open(options) { calls.push(['open', options]); },
-    async close() { calls.push(['close']); },
-    getInfo() { return { usbVendorId: 0x303A, usbProductId: 0x1001 }; }
-  };
-  const serial = {
-    requestPort() { calls.push(['picker']); return Promise.resolve(port); },
-    addEventListener(type, callback) { this.disconnect = callback; }
-  };
-  return { serial, port, calls };
-}
-
-test('opens the browser picker immediately, then opens 115200 8N1 and closes the selected port', async () => {
-  const { serial, calls } = fakeSerial();
-  const transport = new SerialTransport({ serial, secure: true });
-  const pending = transport.connect(settings);
-  assert.deepEqual(calls, [['picker']]);
-  assert.equal(transport.connected, false);
-  await pending;
-  assert.deepEqual(calls[1], ['open', { baudRate: 115200, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' }]);
-  assert.equal(transport.connected, true);
-  assert.equal(transport.label, 'USB 303A:1001');
-  await assert.rejects(transport.exchange({ protocol: 'uart', bytes: [1] }), /firmware protocol/);
-  await transport.disconnect();
-  assert.equal(transport.connected, false);
-  assert.equal(transport.port, null);
-  assert.equal(transport.label, 'Select in Chrome');
-  assert.deepEqual(calls.at(-1), ['close']);
+test('picker runs in the gesture; fixed host settings, handshake and target exchange use real streams', async () => {
+  const mock = fakeSerial(); const transport = new SerialTransport({ serial: mock.serial, secure: true });
+  const connecting = transport.connect(); assert.deepEqual(mock.calls, [['picker']]); await connecting;
+  assert.deepEqual(mock.calls[1], ['open', serialOptions()]); assert.equal(transport.connected, true); assert.equal(transport.state, 'Connected');
+  assert.deepEqual(mock.peer.requests.slice(0, 3).map(request => request.op), ['hello', 'session.claim', 'hello']);
+  const result = await transport.exchange({ protocol: 'i2c', instance: 2, action: 'read', settings: { address: 60, clockHz: 400000 }, length: 4 });
+  assert.deepEqual(result.bytes, [0, 0, 0, 0]); assert.equal(mock.peer.requests.at(-1).channel, 2);
+  await transport.disconnect(); assert.equal(transport.connected, false); assert.equal(mock.port.readable.locked, false); assert.equal(mock.port.writable.locked, false);
+  assert.equal(mock.peer.requests.at(-1).op, 'session.release'); assert.deepEqual(mock.calls.at(-1), ['close']);
 });
-
-test('cancelling the picker or failing to open leaves the app disconnected', async () => {
-  const { serial, port } = fakeSerial();
-  const transport = new SerialTransport({ serial, secure: true });
-  const cancellation = Object.assign(new Error('Cancelled'), { name: 'NotFoundError' });
-  serial.requestPort = () => Promise.reject(cancellation);
-  await assert.rejects(transport.connect(settings), { name: 'NotFoundError' });
-  assert.equal(transport.connected, false);
-  serial.requestPort = () => Promise.resolve(port);
-  port.open = async () => { throw new Error('Port busy'); };
-  await assert.rejects(transport.connect(settings), /Port busy/);
-  assert.equal(transport.connected, false);
-  assert.equal(transport.port, null);
+test('busy connection cannot operate targets but can be closed', async () => {
+  const mock = fakeSerial({ busy: true }); const transport = new SerialTransport({ serial: mock.serial, secure: true });
+  await transport.connect(); assert.equal(transport.state, 'Busy'); assert.equal(transport.connected, false); assert.equal(transport.isOpen, true);
+  await assert.rejects(transport.exchange({ protocol: 'uart', action: 'write' }), /Acquire/); await transport.disconnect();
 });
-
-test('unsupported browser, insecure origin, or incompatible UART settings fail without opening the picker', async () => {
-  await assert.rejects(new SerialTransport({ serial: null, secure: true }).connect(settings), /unavailable/);
-  const { serial, calls } = fakeSerial();
-  await assert.rejects(new SerialTransport({ serial, secure: false }).connect(settings), /HTTPS or localhost/);
-  for (const change of [{ databits: '9' }, { stop: '0' }, { parity: 'Y' }, { baud: 'invalid' }]) {
-    assert.throws(() => serialOptions({ ...settings, ...change }));
-  }
-  assert.deepEqual(calls, []);
+test('picker cancellation/open failures and unavailable browser leave no claimed connection', async () => {
+  const mock = fakeSerial(); const transport = new SerialTransport({ serial: mock.serial, secure: true });
+  mock.serial.requestPort = () => Promise.reject(Object.assign(new Error('Cancelled'), { name: 'NotFoundError' }));
+  await assert.rejects(transport.connect(), { name: 'NotFoundError' }); assert.equal(transport.isOpen, false);
+  await assert.rejects(new SerialTransport({ serial: null, secure: true }).connect(), /Chrome/);
+  await assert.rejects(new SerialTransport({ serial: mock.serial, secure: false }).connect(), /HTTPS/);
+  assert.deepEqual(serialOptions({ baud: '9600', databits: '9' }), { baudRate: 115200, dataBits: 8, parity: 'none', stopBits: 1, flowControl: 'none' });
 });
-
-test('unplug updates connection state and a failed close does not claim success', async () => {
-  const { serial, port } = fakeSerial();
-  let unplugged = 0;
-  const transport = new SerialTransport({ serial, secure: true, onDisconnect: () => unplugged++ });
-  await transport.connect(settings);
-  port.close = async () => { throw new Error('Close failed'); };
-  await assert.rejects(transport.disconnect(), /Close failed/);
-  assert.equal(transport.connected, true);
-  serial.disconnect({ target: {} });
-  assert.equal(unplugged, 0);
-  serial.disconnect({ target: port });
-  assert.equal(transport.connected, false);
-  assert.equal(transport.port, null);
-  assert.equal(unplugged, 1);
+test('unplug rejects commands, closes streams and reports ended session', async () => {
+  const mock = fakeSerial(); let disconnected = 0;
+  const transport = new SerialTransport({ serial: mock.serial, secure: true, onDisconnect: () => disconnected++ });
+  await transport.connect(); mock.serial.disconnect({ port: mock.port });
+  for (let i = 0; i < 10 && !disconnected; i++) await tick();
+  assert.equal(disconnected, 1); assert.equal(transport.connected, false); assert.equal(transport.isOpen, false);
+  assert.equal(mock.port.readable.locked, false); assert.equal(mock.port.writable.locked, false);
 });

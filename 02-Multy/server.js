@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolve, sep, extname } from 'node:path';
@@ -10,8 +11,8 @@ const mimeTypes = {
   '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json'
 };
 
-export function createAppServer() {
-  return createServer(async (request, response) => {
+export function createAppServer(tls) {
+  const handler = async (request, response) => {
     const headers = {
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -44,11 +45,19 @@ export function createAppServer() {
       response.writeHead(status, headers);
       response.end(status === 400 ? 'Bad request' : status === 404 ? 'Not found' : 'Server error');
     }
-  });
+  };
+  return tls ? createHttpsServer(tls, handler) : createServer(handler);
+}
+
+export async function serverOptions(env = process.env) {
+  if (Boolean(env.TLS_CERT_FILE) !== Boolean(env.TLS_KEY_FILE)) throw new Error('TLS_CERT_FILE and TLS_KEY_FILE must be provided together.');
+  const tls = env.TLS_CERT_FILE ? { cert: await readFile(env.TLS_CERT_FILE), key: await readFile(env.TLS_KEY_FILE) } : undefined;
+  const port = Number(env.PORT || (tls ? 3443 : 3000));
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be 1–65535.');
+  return { tls, port, host: env.HOST || '127.0.0.1' };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const port = Number(process.env.PORT || 3000);
-  const host = process.env.HOST || '127.0.0.1';
-  createAppServer().listen(port, host, () => console.log(`Multy is ready at http://${host}:${port}`));
+  const { tls, port, host } = await serverOptions();
+  createAppServer(tls).listen(port, host, () => console.log(`Multy is ready at ${tls ? 'https' : 'http'}://${host}:${port}`));
 }

@@ -63,8 +63,8 @@ select { color: var(--text); background: var(--field); padding: 10px 30px 10px 1
 .connection-help { flex-basis: 100%; text-align: right; font-size: .75rem; margin: -8px 0 0; color: var(--muted); }
 .mobile-transport, .mobile-navigation { display: none; }
 .interface-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; background: var(--surface); padding: 20px; border: 1px solid var(--border); border-top: 0; border-bottom: 0; }
-.interface-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--card); min-width: 0; }
-.card-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.interface-card { position: relative; border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--card); min-width: 0; }
+.card-tools { position: absolute; top: 16px; right: 16px; display: flex; justify-content: flex-end; }
 .card-maximize { display: grid; place-items: center; width: 44px; min-height: 36px; padding: 6px 10px; color: var(--accent); }
 .card-maximize svg { width: 20px; height: 20px; }
 .interface-grid.is-maximized { grid-template-columns: minmax(0, 1fr); }
@@ -74,7 +74,7 @@ select { color: var(--text); background: var(--field); padding: 10px 30px 10px 1
 [data-theme="light"] .interface-card.is-maximized .io-grid { grid-template-rows: auto minmax(0, 1fr); }
 .interface-card.is-maximized .receive { display: flex; flex-direction: column; }
 .interface-card.is-maximized .receive-data { flex: 1; max-height: none; }
-.card-header { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; min-height: 82px; }
+.card-header { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; min-height: 82px; padding-right: 52px; }
 .interface-icon { color: var(--purple); background: var(--icon-bg); border: 1px solid color-mix(in srgb, var(--purple) 25%, transparent); width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; flex-shrink: 0; }
 .i2c .interface-icon { color: var(--accent); background: var(--accent-soft); border-color: var(--border); }
 h2 { margin: 1px 0 4px; font-size: 1.2rem; letter-spacing: -.025em; }
@@ -113,6 +113,15 @@ h2 { margin: 1px 0 4px; font-size: 1.2rem; letter-spacing: -.025em; }
 .log-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 5ch); gap: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .log-row > span { min-width: 0; }
 .ascii { color: var(--accent); text-align: right; }
+.uart .io-grid { grid-template-columns: minmax(0, 1fr); }
+.uart { --uart-hex-width: 23ch; --uart-ascii-width: 8ch; }
+.uart.is-maximized { --uart-hex-width: 101ch; --uart-ascii-width: 32ch; }
+.uart .log-row { grid-template-columns: minmax(var(--uart-hex-width), 1fr) var(--uart-ascii-width); min-width: calc(var(--uart-hex-width) + var(--uart-ascii-width) + 12px); white-space: pre; overflow-wrap: normal; }
+.uart .ascii { text-align: right; }
+.uart-tx-editor { display: flex; gap: 12px; overflow-x: auto; min-height: 45px; margin-top: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--field); padding: 8px; font: .875rem/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.uart .uart-tx-editor .hex-input { flex: 0 0 var(--uart-hex-width); width: var(--uart-hex-width); min-height: 1.65em; border: 0; border-radius: 0; margin: 0; padding: 0; font: inherit; white-space: pre; overflow-wrap: normal; }
+.uart-tx-ascii { flex: 0 0 var(--uart-ascii-width); width: var(--uart-ascii-width); margin: 0 0 0 auto; font: inherit; white-space: pre; }
+.uart .receive-data { overflow-x: auto; }
 .empty-log { color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .8125rem; }
 .input-error { color: #d43d55; font-size: .8125rem; line-height: 1.5; margin: 10px 0 0; }
 [data-theme="dark"] .input-error { color: #ff97a8; }
@@ -178,3 +187,30 @@ h2 { margin: 1px 0 4px; font-size: 1.2rem; letter-spacing: -.025em; }
 .mobile-transport .connection-status { grid-column: auto; grid-row: auto; font-size: .75rem; }
 [data-theme="light"] .transmit-actions .primary { min-width: 0; margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+input { font: inherit; min-width: 0; width: 100%; min-height: 42px; padding: 10px 12px; color: var(--text); background: var(--field); border: 1px solid var(--border); border-radius: 8px; }
+input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.pin-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.pin-badges span { padding: 5px 7px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: .75rem; }
+.channel-status { font-size: .8125rem; color: var(--muted); overflow-wrap: anywhere; min-height: 1.5em; }
+.log-info { font: .75rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--muted); margin-bottom: 8px; }
+.receive-data { max-height: 420px; overflow: auto; }
+.settings input { font-size: .875rem; }
+@media (max-width: 760px) { .settings input { font-size: 16px; } }
+@media (max-width: 760px) {
+  .interface-card .pin-badges { padding-right: 52px; min-height: 44px; }
+  [data-device="pc"] .connection-choice { display: flex; grid-column: 1 / -1; }
+  [data-device="pc"] .desktop-label { display: none; }
+  [data-device="pc"] .transport-switch { width: 100%; }
+  [data-device="pc"] .transport { flex: 1; padding: 10px 6px; }
+}
+.uart .settings { grid-template-columns: minmax(100px, 1.4fr) minmax(66px, 1fr) minmax(86px, 1.1fr) minmax(52px, .7fr); }
+@media (max-width: 450px) { .uart .settings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.i2c .settings { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.spi .settings { grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: 6px; }
+.i2c .setting, .spi .setting { font-size: .75rem; }
+.settings .setting span { min-height: 30px; line-height: 15px; }
+.settings input, .settings select { height: 44px; min-height: 44px; line-height: 20px; }
+.transmit > .hex-input { margin: 8px 0 0; }
+.i2c .settings select, .spi .settings select { font-size: .8125rem; padding-left: 6px; padding-right: 16px; }
+.i2c .settings input, .spi .settings input { padding-left: 6px; padding-right: 6px; }

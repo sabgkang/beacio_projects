@@ -1,18 +1,20 @@
-import { detectDevice, parseHex, formatBytes } from './core.js';
-import { DemoTransport, SerialTransport } from './transport.js';
+import { detectDevice, parseHex, formatBytes, formatUartInput, UART_ROW_BYTES, UART_MAX_ROW_BYTES } from './core.js';
+import { BleTransport, SerialTransport } from './transport.js';
+import { PINS, ReceiveBuffer, fromHex } from './protocol.js';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 document.documentElement.dataset.device = device;
 const mobileLayout = matchMedia('(max-width: 760px)');
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
-const demoTransport = new DemoTransport();
-const serialTransport = new SerialTransport({ onDisconnect: () => {
-  updateConnection();
-  notify('Serial device disconnected.');
-} });
+const callbacks = { onState: () => updateConnection(), onEvent: frame => receiveEvent(frame), onDisconnect: error => {
+  for (const channel of channels.values()) channel.ended = true;
+  updateConnection(); scheduleLogs(); notify(error.message);
+} };
+const serialTransport = new SerialTransport(callbacks);
+const bleTransport = new BleTransport(callbacks);
 let method = device === 'pc' ? 'serial' : 'ble';
-let transport = method === 'serial' ? serialTransport : demoTransport;
+let transport = method === 'serial' ? serialTransport : bleTransport;
 let connecting = false;
 let selectedProtocol = 'uart';
 let selectedInstance = 1;
@@ -36,18 +38,21 @@ const channels = new Map();
 function selectField(id, label, options) {
   return `<label class="setting" for="${id}"><span>${label}</span><select id="${id}">${options.map(value => `<option>${value}</option>`).join('')}</select></label>`;
 }
+function inputField(id, label, value, type = 'text', extra = '') {
+  return `<label class="setting" for="${id}"><span>${label}</span><input id="${id}" type="${type}" value="${value}" ${extra}></label>`;
+}
 
 for (let instance = 1; instance <= 2; instance++) {
   for (const [protocol, definition] of Object.entries(definitions)) {
     const id = `${protocol}${instance}`;
     const settings = protocol === 'uart'
       ? selectField(`${id}-baud`, 'Baud rate', ['115200', '9600', '19200', '38400', '57600', '230400'])
-        + selectField(`${id}-databits`, 'Data Bits', ['8', '9'])
-        + selectField(`${id}-parity`, 'Parity', ['N', 'Y'])
-        + selectField(`${id}-stop`, 'Stop', ['1', '0'])
+        + selectField(`${id}-databits`, 'Data Bits', ['8', '7', '6', '5'])
+        + selectField(`${id}-parity`, 'Parity', ['None', 'Even', 'Odd'])
+        + selectField(`${id}-stop`, 'Stop', ['1', '2'])
       : protocol === 'i2c'
-        ? selectField(`${id}-address`, 'Address (7-bit)', ['0x3C', '0x3D', '0x48', '0x50', '0x68', '0x76']) + selectField(`${id}-clock`, 'Clock rate', ['400 kHz', '100 kHz', '1 MHz'])
-        : selectField(`${id}-clock`, 'Clock rate', ['1 MHz', '100 kHz', '500 kHz', '4 MHz', '8 MHz']) + selectField(`${id}-mode`, 'Mode', ['Mode 0', 'Mode 1', 'Mode 2', 'Mode 3']);
+        ? inputField(`${id}-address`, 'Address (7-bit)', '0x3C') + selectField(`${id}-clock`, 'Clock rate', ['400 kHz', '100 kHz']) + inputField(`${id}-length`, 'Read length', '1', 'number', 'min="1" max="256"')
+        : selectField(`${id}-clock`, 'Clock rate', ['1 MHz', '100 kHz', '500 kHz', '4 MHz', '8 MHz']) + selectField(`${id}-mode`, 'Mode', ['0', '1', '2', '3']) + inputField(`${id}-length`, 'Read length', '1', 'number', 'min="1" max="256"') + inputField(`${id}-dummy`, 'Dummy byte (hex)', '00', 'text', 'maxlength="2"');
     const card = document.createElement('section');
     card.className = `interface-card ${protocol}`;
     card.dataset.protocol = protocol;
@@ -62,8 +67,22 @@ for (let instance = 1; instance <= 2; instance++) {
     maximizeButton.className = 'card-maximize';
     cardTools.append(maximizeButton);
     card.prepend(cardTools);
-    const initialBytes = protocol === 'uart' ? [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x0D, 0x0A] : protocol === 'i2c' ? [0x3C, 0x00, 0xA5, 0x5A] : [0xEF, 0x40, 0x18, 0, 0, 0, 0];
-    const channel = { card, protocol, instance, bytes: initialBytes, busy: false };
+    const pins = document.createElement('div'); pins.className = 'pin-badges';
+    for (const [name, gpio] of Object.entries(PINS[id])) { const badge = document.createElement('span'); badge.textContent = `${name} · GPIO${gpio}`; pins.append(badge); }
+    card.querySelector('.settings').before(pins);
+    const status = document.createElement('p'); status.className = 'channel-status'; status.setAttribute('role', 'status');
+    card.querySelector('.settings').after(status);
+    const channel = { card, protocol, instance, log: new ReceiveBuffer(), busy: false, applied: null, ended: false, deviceDropped: 0, rxErrors: 0 };
+    if (protocol === 'uart') {
+      card.querySelectorAll('.settings select').forEach(select => select.addEventListener('change', () => {
+        channel.settingsPending = true;
+        if (transport.connected) applyUart(channel);
+        else status.textContent = 'Settings will apply when connected';
+      }));
+    } else if (protocol === 'i2c') {
+      const recover = document.createElement('button'); recover.type = 'button'; recover.className = 'primary recover-bus'; recover.textContent = 'Recover bus'; recover.hidden = true;
+      status.before(recover); recover.addEventListener('click', () => recoverI2c(channel));
+    }
     channels.set(id, channel);
     maximizeButton.addEventListener('click', () => {
       if (maximizedChannel === channel) {
@@ -80,24 +99,40 @@ for (let instance = 1; instance <= 2; instance++) {
     card.querySelector('form').addEventListener('submit', event => { event.preventDefault(); exchange(channel, 'write'); });
     card.querySelector('[data-action="read"]')?.addEventListener('click', () => exchange(channel, 'read'));
     const input = card.querySelector('.hex-input');
-    input.addEventListener('input', () => { showInputError(channel, ''); resizeInput(input); });
+    if (protocol === 'uart') {
+      const editor = document.createElement('div'); editor.className = 'uart-tx-editor';
+      const ascii = document.createElement('pre'); ascii.className = 'uart-tx-ascii ascii'; ascii.setAttribute('aria-label', 'TX ASCII');
+      input.before(editor); editor.append(input, ascii); input.wrap = 'off'; input.maxLength = 815;
+      formatUartEditor(input);
+    }
+    input.addEventListener('input', () => { showInputError(channel, ''); if (protocol === 'uart') formatUartEditor(input); resizeInput(input); });
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
         card.querySelector('form').requestSubmit();
       }
     });
-    card.querySelector('[data-action="clear"]').addEventListener('click', () => { channel.bytes = []; renderLog(channel); notify(`${definition.label}${instance} received data cleared.`); });
+    card.querySelector('[data-action="clear"]').addEventListener('click', () => { channel.log.clear(); renderLog(channel); notify(`${definition.label}${instance} received data cleared.`); });
     card.querySelector('[data-action="copy"]').addEventListener('click', async () => {
-      if (!channel.bytes.length) return notify('No received data to copy.');
+      if (!channel.log.bytes.length) return notify('No received data to copy.');
       try {
-        await navigator.clipboard.writeText(formatBytes(channel.bytes).map(row => row.hex).join('\n'));
+        await navigator.clipboard.writeText(formatBytes(channel.log.bytes, channel.protocol === 'uart' ? uartColumns(channel) : 5).map(row => row.hex).join('\n'));
         notify(`${definition.label}${instance} received data copied.`);
       } catch { notify('Copy is unavailable here. Select the received data and copy it manually.'); }
     });
   }
 }
 
+function formatUartEditor(input) {
+  const columns = input.closest('.interface-card').classList.contains('is-maximized') ? UART_MAX_ROW_BYTES : UART_ROW_BYTES;
+  const formatted = formatUartInput(input.value, input.selectionStart, columns);
+  if (!formatted) return;
+  input.value = formatted.text; input.setSelectionRange(formatted.caret, formatted.caret);
+  input.parentElement.querySelector('.uart-tx-ascii').textContent = formatted.ascii;
+}
+function uartColumns(channel) {
+  return channel.card.classList.contains('is-maximized') ? UART_MAX_ROW_BYTES : UART_ROW_BYTES;
+}
 function resizeInput(input) {
   if (!input.getClientRects().length) return;
   input.style.height = 'auto';
@@ -110,13 +145,63 @@ function resizeInputs() {
 function renderLog(channel) {
   const log = channel.card.querySelector('.receive-data');
   log.replaceChildren();
-  if (!channel.bytes.length) { const empty = document.createElement('span'); empty.className = 'empty-log'; empty.textContent = 'No received data'; log.append(empty); }
-  for (const line of formatBytes(channel.bytes)) {
+  const info = document.createElement('div'); info.className = 'log-info'; info.textContent = `${channel.log.bytes.length} bytes retained · ${channel.log.dropped} truncated · ${channel.deviceDropped} lost on device${channel.rxErrors ? ` · ${channel.rxErrors} UART errors (loss may be unknown)` : ''}${channel.ended ? ' · Ended session' : ''}`; log.append(info);
+  if (!channel.log.bytes.length) { const empty = document.createElement('span'); empty.className = 'empty-log'; empty.textContent = 'No received data'; log.append(empty); }
+  for (const line of formatBytes(channel.log.bytes.slice(-1024), channel.protocol === 'uart' ? uartColumns(channel) : 5)) {
     const row = document.createElement('div'); row.className = 'log-row';
     const hex = document.createElement('span'); hex.textContent = line.hex;
     const ascii = document.createElement('span'); ascii.className = 'ascii'; ascii.textContent = line.ascii;
     row.append(hex, ascii); log.append(row);
   }
+}
+let logsScheduled = false;
+function scheduleLogs() {
+  if (logsScheduled) return; logsScheduled = true;
+  requestAnimationFrame(() => { logsScheduled = false; for (const channel of channels.values()) renderLog(channel); });
+}
+function receiveEvent(frame) {
+  if (frame.event === 'uart.rx') {
+    const channel = channels.get(`uart${frame.channel}`); if (!channel) return;
+    channel.log.append(fromHex(frame.data)); channel.deviceDropped = frame.droppedBytes || 0; channel.rxErrors = frame.rxErrors || 0; scheduleLogs();
+  }
+}
+function channelSettings(channel) {
+  const id = `${channel.protocol}${channel.instance}`;
+  const value = key => document.getElementById(`${id}-${key}`).value;
+  if (channel.protocol === 'uart') return { baud: Number(value('baud')), dataBits: Number(value('databits')), parity: value('parity').toLowerCase(), stopBits: Number(value('stop')) };
+  const clock = value('clock').split(' '); const settings = { clockHz: Number(clock[0]) * (clock[1] === 'MHz' ? 1000000 : 1000) };
+  if (channel.protocol === 'i2c') {
+    const address = value('address');
+    if (!/^(?:0x[0-9a-f]{1,2}|\d{1,3})$/i.test(address)) throw new Error('Enter an address such as 0x3C.');
+    settings.address = Number(address);
+    if (settings.address < 8 || settings.address > 119) throw new Error('Address must be 0x08–0x77.');
+  } else settings.mode = Number(value('mode').slice(-1));
+  return settings;
+}
+async function applyUart(channel) {
+  if (channel.busy || !transport.connected) return;
+  channel.busy = true; updateConnection();
+  try {
+    const settings = channelSettings(channel);
+    const result = await transport.request('uart.configure', { channel: channel.instance, settings });
+    channel.applied = result.settings; channel.settingsPending = false; channel.card.querySelector('.channel-status').textContent = 'Settings applied';
+  } catch (error) {
+    if (channel.applied) showUartSettings(channel);
+    channel.settingsPending = false;
+    channel.card.querySelector('.channel-status').textContent = error.message; notify(error.message);
+  }
+  finally { channel.busy = false; updateConnection(); }
+}
+function showUartSettings(channel) {
+  const settings = channel.applied, id = `uart${channel.instance}`;
+  for (const [key, value] of Object.entries({ baud: settings.baud, databits: settings.dataBits, parity: settings.parity[0].toUpperCase() + settings.parity.slice(1), stop: settings.stopBits })) document.getElementById(`${id}-${key}`).value = String(value);
+}
+async function recoverI2c(channel) {
+  if (channel.busy || !transport.connected) return;
+  channel.busy = true; updateConnection();
+  try { await transport.request('i2c.recover', { channel: channel.instance }); channel.card.querySelector('.recover-bus').hidden = true; channel.card.querySelector('.channel-status').textContent = 'Bus recovered'; }
+  catch (error) { channel.card.querySelector('.channel-status').textContent = error.message; }
+  finally { channel.busy = false; updateConnection(); }
 }
 function showInputError(channel, message) {
   const input = channel.card.querySelector('.hex-input');
@@ -130,18 +215,32 @@ async function exchange(channel, action) {
   if (!transport.connected) { notify('Connect a device first.'); $('#connect').focus(); return; }
   let bytes = [];
   if (action !== 'read') {
-    try { bytes = parseHex(channel.card.querySelector('.hex-input').value); showInputError(channel, ''); }
+    try { bytes = parseHex(channel.card.querySelector('.hex-input').value, channel.protocol === 'uart'); showInputError(channel, ''); }
     catch (error) { showInputError(channel, error.message); channel.card.querySelector('.hex-input').focus(); return; }
   }
   channel.busy = true;
+  updateConnection();
   const buttons = [...channel.card.querySelectorAll('.primary')]; buttons.forEach(button => button.disabled = true);
   try {
-    const settings = Object.fromEntries([...channel.card.querySelectorAll('select')].map(select => [select.id.split('-').pop(), select.value]));
-    const received = await transport.exchange({ protocol: channel.protocol, instance: channel.instance, action, bytes, settings });
-    if (received.length) { channel.bytes = received; renderLog(channel); }
-    notify(`${definitions[channel.protocol].label}${channel.instance}: ${action === 'read' ? 'read complete' : `${bytes.length} bytes ${channel.protocol === 'spi' ? 'transferred' : 'sent'}`} (demo).`);
-  } catch (error) { notify(error.message); }
-  finally { channel.busy = false; buttons.forEach(button => button.disabled = false); }
+    const settings = channelSettings(channel);
+    if (channel.protocol === 'uart' && Object.entries(settings).some(([key, value]) => channel.applied?.[key] !== value)) {
+      const configured = await transport.request('uart.configure', { channel: channel.instance, settings });
+      channel.applied = configured.settings; channel.settingsPending = false;
+    }
+    const id = `${channel.protocol}${channel.instance}`;
+    const length = Number(document.getElementById(`${id}-length`)?.value || 1);
+    if (action === 'read' && (!Number.isInteger(length) || length < 1 || length > 256)) throw new Error('Read length must be 1–256.');
+    const dummyHex = document.getElementById(`${id}-dummy`)?.value || '00';
+    if (channel.protocol === 'spi' && action === 'read' && !/^[0-9a-f]{2}$/i.test(dummyHex)) throw new Error('Dummy byte must contain two hexadecimal digits.');
+    const result = await transport.exchange({ protocol: channel.protocol, instance: channel.instance, action, bytes, settings, length, dummy: parseInt(dummyHex, 16) });
+    if (result.bytes.length) { channel.log.append(result.bytes); scheduleLogs(); }
+    channel.card.querySelector('.channel-status').textContent = `${action === 'read' ? 'Read' : 'Sent'} ${result.count} bytes${result.shortRead ? ' · Short read' : ''}`;
+  } catch (error) {
+    channel.card.querySelector('.channel-status').textContent = `${error.code ? error.code + ': ' : ''}${error.message}`;
+    if (error.code === 'I2C_BUS_STUCK') channel.card.querySelector('.recover-bus').hidden = false;
+    notify(error.message);
+  }
+  finally { channel.busy = false; updateConnection(); }
 }
 function notify(message) {
   const toast = $('#toast'); clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false;
@@ -170,24 +269,26 @@ function updateConnection() {
     const active = button.dataset.transport === method;
     const unavailable = device === 'iphone' && button.dataset.transport === 'serial';
     button.hidden = unavailable;
-    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); button.disabled = unavailable || transport.connected || connecting;
+    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); button.disabled = unavailable || transport.isOpen || connecting;
   });
   $('#port-setting').hidden = method !== 'serial';
   $('#serial-port').textContent = serialTransport.label;
-  $('#connect').textContent = transport.connected ? 'Disconnect' : 'Connect';
+  $('#connect').textContent = transport.isOpen ? 'Disconnect' : 'Connect';
   $('#connect').disabled = connecting;
-  $('#connection-status').textContent = connecting ? (transport.connected ? 'Disconnecting…' : 'Connecting…') : transport.connected ? (method === 'serial' ? 'Connected' : 'Connected · demo') : 'Disconnected';
+  $('#connection-status').textContent = transport.state;
   $('.connection-status').classList.toggle('connected', transport.connected);
-  $('.ready-status').innerHTML = `<span class="status-dot ready"></span>${transport.connected ? (method === 'serial' ? 'Serial port connected' : 'Demo device connected') : 'Ready for connection'}`;
-  $('.demo-note strong').textContent = method === 'serial' ? 'Web Serial' : 'Demo data';
-  $('.footer-detail').textContent = method === 'serial' ? ' · UART1 settings open the port. Hardware commands are not configured.' : ' · BLE communication is simulated.';
-  $('#mobile-transport-name').textContent = method === 'ble' ? `${device === 'iphone' ? 'iPhone' : 'Mobile'} · BLE` : 'PC · USB-serial';
+  $('.ready-status').textContent = transport.connected ? 'Device control acquired' : transport.state === 'Busy' ? 'Device controlled by another client' : 'No device control';
+  $('.demo-note strong').textContent = method === 'serial' ? 'USB-serial · 115200 8N1' : `BLE · ${bleTransport.chunkBytes} bytes/chunk`;
+  $('.footer-detail').textContent = transport.info ? ` · ${transport.info.deviceId} · Firmware ${transport.info.firmware} · Owner: ${transport.info.owner || 'none'}` : ' · Connect to Multy firmware';
+  for (const channel of channels.values()) channel.card.querySelectorAll('.primary').forEach(button => { button.disabled = !transport.connected || channel.busy; });
+  for (const channel of channels.values()) channel.card.querySelectorAll('.settings input, .settings select').forEach(input => { input.disabled = channel.busy; });
+  $('#mobile-transport-name').textContent = method === 'ble' ? `${device === 'iphone' ? 'iPhone' : device === 'pc' ? 'PC' : 'Mobile'} · BLE` : 'PC · USB-serial';
   $('.mobile-device-icon').textContent = method === 'ble' ? 'ᛒ' : '▣';
 }
 document.querySelectorAll('[data-transport]').forEach(button => button.addEventListener('click', () => {
-  if (transport.connected || connecting || (device === 'iphone' && button.dataset.transport !== 'ble')) return;
+  if (transport.isOpen || connecting || (device === 'iphone' && button.dataset.transport !== 'ble')) return;
   method = button.dataset.transport;
-  transport = method === 'serial' ? serialTransport : demoTransport;
+  transport = method === 'serial' ? serialTransport : bleTransport;
   updateConnection();
 }));
 $('#connect').addEventListener('click', async () => {
@@ -195,21 +296,27 @@ $('#connect').addEventListener('click', async () => {
   connecting = true;
   updateConnection();
   try {
-    if (transport.connected) {
+    if (transport.isOpen) {
       await transport.disconnect();
-      notify(method === 'serial' ? 'Serial port closed.' : 'Demo device disconnected.');
-    } else if (method === 'serial') {
-      const settings = Object.fromEntries([...channels.get('uart1').card.querySelectorAll('select')].map(select => [select.id.split('-').pop(), select.value]));
-      await transport.connect(settings);
-      // Remove sample RX data so it cannot be mistaken for hardware responses.
-      for (const channel of channels.values()) { channel.bytes = []; renderLog(channel); }
-      notify('Serial port opened. Multy hardware commands are not configured yet.');
+      for (const channel of channels.values()) channel.ended = true;
+      scheduleLogs(); notify('Device disconnected.');
     } else {
-      await transport.connect(method);
-      notify('Demo connected. Send, read, or transfer hexadecimal bytes.');
+      await transport.connect();
+      if (transport.connected) {
+        for (const channel of channels.values()) {
+          channel.log.clear(); channel.ended = false; channel.deviceDropped = 0; channel.rxErrors = 0;
+          channel.card.querySelector('.recover-bus')?.setAttribute('hidden', '');
+          if (channel.protocol === 'uart') {
+            const settings = transport.info.uart[channel.instance - 1]; channel.applied = settings;
+            if (channel.settingsPending) await applyUart(channel);
+            else { showUartSettings(channel); channel.card.querySelector('.channel-status').textContent = 'Settings applied'; }
+          }
+        }
+        scheduleLogs(); notify('Connected. Device control acquired.');
+      } else notify('Device is controlled by another client. Disconnect and try again after it releases control.');
     }
   } catch (error) {
-    notify(error.name === 'NotFoundError' ? 'No serial port selected.' : error.message);
+    notify(error.name === 'NotFoundError' ? 'No device selected.' : error.message);
   } finally {
     connecting = false;
     updateConnection();
@@ -234,6 +341,11 @@ function updateLayout() {
     const maximized = maximizedChannel === channel;
     channel.card.hidden = maximizedChannel ? !maximized : compact && (channel.protocol !== selectedProtocol || channel.instance !== selectedInstance);
     channel.card.classList.toggle('is-maximized', maximized);
+    if (channel.protocol === 'uart' && channel.rowBytes !== uartColumns(channel)) {
+      channel.rowBytes = uartColumns(channel);
+      formatUartEditor(channel.card.querySelector('.hex-input'));
+      renderLog(channel);
+    }
     const button = channel.card.querySelector('.card-maximize');
     button.innerHTML = maximized
       ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V4h12v12h-4"/><rect x="4" y="8" width="12" height="12" rx="1"/></svg>'

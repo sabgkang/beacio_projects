@@ -27,6 +27,9 @@ build/
 .env.*
 !.env.example
 
+# Multy local HTTPS certificates and private keys
+02-Multy/certs/
+
 # Operating system metadata
 .DS_Store
 Thumbs.db

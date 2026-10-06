@@ -5,9 +5,9 @@ Beacio 測試與開發專案，包含使用 Arduino 框架的 ESP32 韌體，以
 ## 專案
 
 - `01-Test/`（test-01）：使用 ESP32-S3-N16R8 模擬 BLE 心率與電池裝置，供 iPhone Safari 搭配 Beacio 擴充功能測試。採用 Arduino 框架，開發板設定為 `esp32-s3-devkitc-1`，配置 16 MB Flash、8 MB OPI PSRAM，序列埠監控速率為 115200 baud。
-- [`02-Multy/`](02-Multy/README.md)（Multy）：自適應序列通訊網頁應用程式，提供 UART1/2、I2C1/2 與 SPI1/2 操作介面，支援 PC 與 iPhone 配置、明亮與深色主題。PC 支援 Web Serial 選取及開啟序列埠；BLE 與通訊資料仍為模擬，PWA 尚未啟用。
+- [`02-Multy/`](02-Multy/README.md)（Multy）：自適應序列通訊網頁應用程式，提供 UART1/2、I2C1/2 與 SPI1/2 操作介面，支援 PC 與 iPhone 配置、明亮與深色主題。已加入 PlatformIO Arduino 韌體、USB-serial／BLE 真實命令、單一控制權與本機 HTTPS；完整 ESP32／iPhone 實機驗收仍待執行，PWA 尚未啟用。
 
-`01-Test/` 使用 `platformio.ini` 設定開發板、框架、相依套件及建置選項；`02-Multy/` 使用 Node.js 與 `package.json`，不需要 PlatformIO 或額外的執行期相依套件。
+`01-Test/` 使用 `platformio.ini` 設定開發板、框架、相依套件及建置選項；`02-Multy/` 的網頁使用 Node.js 與 `package.json`，沒有額外執行期套件；`02-Multy/firmware/` 的 ESP32 韌體使用 PlatformIO Arduino 框架及 ArduinoJson。
 
 ## test-01 的背景與運作方式
 
@@ -65,49 +65,17 @@ pio device monitor --project-dir 01-Test
 
 ## 02-Multy 網頁應用程式
 
-### 啟動與測試
+Multy 包含網頁與對應的 ESP32-S3 N16R8 韌體。PC 使用 USB-to-serial 或 BLE；iPhone Safari 透過 Beacio 使用 BLE。六組介面全部使用硬體控制器，UART0 主機連線固定 115200 8N1，不受 UART1／2 目標設定影響。
 
-需要 Node.js 20 或更新版本。在儲存庫根目錄執行：
-
-```sh
-cd 02-Multy
-node server.js
-# 或使用 npm start
-```
-
-啟動後開啟 [http://localhost:3000](http://localhost:3000)。預設僅監聽 `127.0.0.1`，可透過 `PORT` 環境變數變更連接埠。修改網頁檔案後重新整理瀏覽器；`npm run dev` 可在伺服器程式變更時自動重新啟動 Node.js。
-
-在 `02-Multy/` 內執行測試：
-
-```sh
-npm test
-# 若環境限制測試程序的啟動，可使用：
-node --test --test-isolation=none
-```
-
-### iPhone 存取
-
-PC 與 iPhone 連接同一個網路，在 `02-Multy/` 使用 PowerShell 啟動：
+在儲存庫根目錄建置韌體：
 
 ```powershell
-$env:HOST = '0.0.0.0'
-node server.js
+pio run --project-dir 02-Multy/firmware
 ```
 
-在 iPhone Safari 開啟 `http://<PC 的區域網路 IP>:3000`。iPhone 只提供 BLE 連線選項；Connect 位於 BLE 右側，下方顯示狀態圓點與 Disconnected。模擬連線成功後，狀態更新且按鈕改為 Disconnect。右上角提供主題切換與重新整理圖示。複製功能需要瀏覽器允許剪貼簿存取；無法存取時會提示手動複製。
+在 `02-Multy/` 執行 `npm start`，PC 開啟 http://localhost:3000。iPhone 使用本機 HTTPS：先執行 `scripts/setup-https.ps1` 產生憑證，再依說明安裝及信任 CA、設定 TLS 與 Beacio。
 
-### 介面與目前範圍
-
-- 明亮與深色主題參考 `Multy-Light.png` 與 `Multy-Dark.png`，預設跟隨系統，手動選擇會保存在本機。
-- PC 顯示六張通訊卡片；中等寬度改為兩欄，窄螢幕使用 UART／I2C／SPI 分頁及介面編號切換。
-- UART 的 Baud rate、Data Bits、Parity 與 Stop 可分別設定，預設為 115200、8、N、1。Data Bits 提供 8／9，Parity 提供 N／Y，Stop 提供 1／0。
-- 每張卡片有最大化及還原圖示。PC 最大化後佔用六張卡片的區域；還原或按 Escape 可回到原配置，保留設定及資料。
-- 傳送欄位與接收資料會換行並隨內容增加高度，最大化及還原模式皆適用。Enter 換行，Ctrl+Enter 或 Cmd+Enter 傳送。Clear 與 Copy 各自作用於所屬卡片；I2C 與 SPI 提供並排的 Read 與 Write 按鈕。
-- PC 選取 USB-serial 後，Connect 會開啟瀏覽器的 Web Serial 序列埠選取視窗，並依 UART1 設定開啟選取的埠；Disconnect 關閉該埠。需要桌面版 Chrome／Edge 及 HTTPS 或 localhost。連線時 UART1 需使用 8N1；9 資料位元、0 停止位元及未指定奇偶模式的 Y 選項會顯示說明。
-- **Web Serial 已可開啟真實序列埠，但 UART／I2C／SPI 硬體命令尚未實作；BLE 仍為模擬。** 開啟真實埠後會清除示範接收資料，傳送按鈕會說明缺少的整合，不會冒充硬體回應。後續需定義 Multy 韌體的命令格式、通道操作及 BLE UUID，再整合 `public/transport.js`。`01-Test` 的心率韌體尚未提供 UART／I2C／SPI 命令。
-- PWA 相關範本保留於 `pwa/`，不在伺服器公開目錄中。目前沒有啟用 manifest、service worker、離線快取或安裝提示。
-
-詳細操作與檔案說明請參閱 [`02-Multy/README.md`](02-Multy/README.md)。
+完整操作請參閱 [Multy README](02-Multy/README.md)、[通訊協定](02-Multy/docs/protocol.md)與[實機驗收清單](02-Multy/docs/hardware-validation.md)。目前程式已實作並可建置；實際硬體與 iPhone 驗證需依清單執行。
 
 ## 專案目錄結構
 
@@ -121,10 +89,13 @@ node server.js
 
 02-Multy/
   package.json   Node.js 指令與版本需求
-  server.js      Node.js HTTP 伺服器
+  server.js      Node.js HTTP／HTTPS 伺服器
   public/        網頁、主題、互動程式與圖示
   pwa/           尚未啟用的 PWA 範本與說明
   test/          Node.js 測試
+  firmware/      PlatformIO Arduino 韌體
+  scripts/       本機 HTTPS 憑證腳本
+  docs/          通訊協定與實機驗收
   Multy-*.png    明亮與深色介面參考圖
 ```
 

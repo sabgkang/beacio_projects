@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAppServer } from '../server.js';
+import { createAppServer, serverOptions } from '../server.js';
 
 test('serves the app and keeps private files and PWA reservation inaccessible', async () => {
   const server = createAppServer();
@@ -15,7 +15,7 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.equal((await fetch(base + '/app.js')).status, 200);
     assert.equal((await fetch(base + '/styles.css', { method: 'HEAD' })).status, 200);
-    for (const path of ['/server.js', '/pwa/manifest.webmanifest', '/package.json', '/missing']) {
+    for (const path of ['/server.js', '/pwa/manifest.webmanifest', '/package.json', '/missing', '/certs/server.pem', '/certs/server-key.pem', '/firmware/src/main.cpp', '/plan.md']) {
       assert.equal((await fetch(base + path)).status, 404);
     }
     assert.equal((await fetch(base + '/%ZZ')).status, 400);
@@ -24,4 +24,11 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('TLS needs both files and server defaults remain localhost', async () => {
+  assert.deepEqual(await serverOptions({}), { tls: undefined, host: '127.0.0.1', port: 3000 });
+  await assert.rejects(serverOptions({ TLS_CERT_FILE: 'missing.pem' }), /together/);
+  await assert.rejects(serverOptions({ TLS_KEY_FILE: 'missing.pem' }), /together/);
+  await assert.rejects(serverOptions({ PORT: 'not-a-number' }), /PORT/);
 });
