@@ -26,8 +26,9 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
   }
 });
 
-test('TLS needs both files and server defaults remain localhost', async () => {
-  assert.deepEqual(await serverOptions({}), { tls: undefined, host: '127.0.0.1', port: 3000 });
+test('TLS needs both files and server defaults allow LAN access', async () => {
+  assert.deepEqual(await serverOptions({}), { tls: undefined, host: '0.0.0.0', port: 3000 });
+  assert.equal((await serverOptions({ HOST: '127.0.0.1' })).host, '127.0.0.1');
   await assert.rejects(serverOptions({ TLS_CERT_FILE: 'missing.pem' }), /together/);
   await assert.rejects(serverOptions({ TLS_KEY_FILE: 'missing.pem' }), /together/);
   await assert.rejects(serverOptions({ PORT: 'not-a-number' }), /PORT/);

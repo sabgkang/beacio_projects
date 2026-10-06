@@ -75,7 +75,7 @@ $env:HOST = '0.0.0.0'
 node server.js
 ```
 
-TLS 必須同時設定 cert 與 key，HTTPS 預設 3443；沒有 TLS 時預設 HTTP 3000。`PORT` 可覆寫，預設只監聽 localhost。Windows 防火牆需允許相應連線。
+TLS 必須同時設定 cert 與 key，HTTPS 預設 3443；沒有 TLS 時預設 HTTP 3000。`PORT` 可覆寫，預設監聽 `0.0.0.0`，可透過 localhost 或 PC 的 LAN IP 存取；`HOST` 可覆寫監聽位址。Windows 防火牆需允許相應連線。
 
 只將 `certs/iphone-rootCA.crt` 傳至 iPhone，安裝描述檔後，在「設定 → 一般 → 關於本機 → 憑證信任設定」啟用根憑證完整信任。不要傳送伺服器私鑰或 mkcert CA 私鑰。腳本不會自動設定手機。
 

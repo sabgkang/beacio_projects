@@ -54,7 +54,7 @@ export async function serverOptions(env = process.env) {
   const tls = env.TLS_CERT_FILE ? { cert: await readFile(env.TLS_CERT_FILE), key: await readFile(env.TLS_KEY_FILE) } : undefined;
   const port = Number(env.PORT || (tls ? 3443 : 3000));
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be 1–65535.');
-  return { tls, port, host: env.HOST || '127.0.0.1' };
+  return { tls, port, host: env.HOST || '0.0.0.0' };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
