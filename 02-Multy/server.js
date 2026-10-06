@@ -57,7 +57,9 @@ export async function serverOptions(env = process.env) {
   return { tls, port, host: env.HOST || '0.0.0.0' };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// PM2 imports ES modules through its own runner; argv[1] then names that runner.
+const entryScripts = [process.argv[1], process.env.pm_exec_path];
+if (entryScripts.some(script => script && import.meta.url === pathToFileURL(resolve(script)).href)) {
   const { tls, port, host } = await serverOptions();
   createAppServer(tls).listen(port, host, () => console.log(`Multy is ready at ${tls ? 'https' : 'http'}://${host}:${port}`));
 }

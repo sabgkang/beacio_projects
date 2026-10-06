@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { createAppServer, serverOptions } from '../server.js';
 
 test('serves the app and keeps private files and PWA reservation inaccessible', async () => {
@@ -32,4 +34,40 @@ test('TLS needs both files and server defaults allow LAN access', async () => {
   await assert.rejects(serverOptions({ TLS_CERT_FILE: 'missing.pem' }), /together/);
   await assert.rejects(serverOptions({ TLS_KEY_FILE: 'missing.pem' }), /together/);
   await assert.rejects(serverOptions({ PORT: 'not-a-number' }), /PORT/);
+});
+
+test('Node, PM2 module loading and npm-inherited PM2 environments start HTTP', { timeout: 15000 }, async () => {
+  const scriptUrl = new URL('../server.js', import.meta.url);
+  for (const mode of ['node', 'pm2', 'npm']) {
+    const probe = createAppServer();
+    await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
+    const port = probe.address().port;
+    await new Promise(resolve => probe.close(resolve));
+    const env = { ...process.env, HOST: '127.0.0.1', PORT: String(port) };
+    delete env.TLS_CERT_FILE; delete env.TLS_KEY_FILE; delete env.pm_exec_path;
+    if (mode === 'pm2') env.pm_exec_path = fileURLToPath(scriptUrl);
+    if (mode === 'npm') env.pm_exec_path = fileURLToPath(new URL('../npm-cli.js', import.meta.url));
+    const args = mode === 'pm2' ? ['--input-type=module', '-e', `await import(${JSON.stringify(scriptUrl.href)})`] : [fileURLToPath(scriptUrl)];
+    const child = spawn(process.execPath, args, { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    child.stderr.on('data', data => { output += data; });
+    try {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`Startup timed out: ${output}`)), 5000);
+        const finish = callback => { clearTimeout(timer); callback(); };
+        child.on('error', error => finish(() => reject(error)));
+        child.on('exit', code => finish(() => reject(new Error(`Exited ${code}: ${output}`))));
+        child.stdout.on('data', data => {
+          output += data;
+          if (output.includes('Multy is ready at')) finish(resolve);
+        });
+      });
+      assert.equal((await fetch(`http://127.0.0.1:${port}/`)).status, 200);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) {
+        const exited = new Promise(resolve => child.once('exit', resolve));
+        child.kill(); await exited;
+      }
+    }
+  }
 });
