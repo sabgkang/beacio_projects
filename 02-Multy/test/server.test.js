@@ -16,6 +16,7 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
     assert.doesNotMatch(html, /rel="manifest"/);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.equal((await fetch(base + '/app.js')).status, 200);
+    assert.equal((await fetch(base + '/live-ble-picker.js')).status, 200);
     for (const path of ['/ble-diagnostic-report.html', '/ble-diagnostic-report.js', '/beacio-reference.js', '/diagnostic-overlay.js', '/picker-diagnostic.js', '/ios-bluetooth.js', '/ios-ble.js', '/ble-scan.js', '/beacio-ios.js', '/ble-diagnostics.html', '/ble-diagnostics.js', '/ble-diagnostics.css', '/vendor/beacio-core-2.2.0.js']) {
       const diagnostic = await fetch(base + path);
       assert.equal(diagnostic.status, 200);
