@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 最新完整回歸 41 項通過，沒有跳過；另涵蓋 iPhone 原始掃描物件直接 GATT、權限錯誤、握手、清理與 PC 傳輸回歸 |
+| Node 自動測試 | 最新完整回歸 46 項通過，沒有跳過；另涵蓋官方 Beacio API 優先順序、診斷倒數／取消／逾時及 PC 傳輸回歸 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -40,3 +40,7 @@ iPhone 主頁 Scan 改為獨立廣播掃描，15 秒自動停止，列出名稱�
 掃描後連線版本 20261007-ios-connect3：清單新增 Connect，先停止掃描，再以完整裝置名稱授權並沿用 GATT／Multy 協定；PC 的 transport.js 沒有變更。新增 5 項測試涵蓋名稱授權與原始手勢、握手／匯流排操作／釋放、授權逾時、GATT 逾時後晚到清理、名稱不符／取消及服務探索失敗。完整 41 項通過。iPhone 實機的名稱授權與連線仍待驗證，未宣稱 requestDevice 卡住已解決。
 
 使用者隨後確認 connect3 仍卡在名稱授權，沒有選擇視窗。直接連線版本 20261007-ios-direct4 依官方 DeviceScanner／useScan／BeacioDevice 流程，保留 advertisementreceived.device 並直接連線，不再呼叫瀏覽器 requestDevice。測試驗證原始物件身分、沒有瀏覽器 chooser 呼叫、GATT 權限拒絕、GATT 逾時後晚到清理、缺少／名稱不符物件、服務探索失敗、握手操作與斷線釋放；完整 41 項通過。實機仍需確認能否通過 GATT 與服務權限，未宣稱已成功連線。
+
+使用者實機回報 direct4 的 GATT 回覆 Device was not authorized，確認掃描許可不等於該裝置的 GATT 授權。auth5 恢復授權先於連線，依官方 platform.ts 優先使用 navigator.beacio，再 fallback 到非 stub 的 navigator.bluetooth；新增 API 來源紀錄與診斷頁比較按鈕。完整 43 項測試通過，授權逾時不會對掃描物件執行 GATT；未更改 PC 傳輸或伺服器 CSP。選擇視窗未出現的實機根因仍待 CSP／API 診斷紀錄確認，不宣稱此次修正已解決。
+
+診斷等待版本 diag6 新增可見倒數、取消等待、重新載入與同步呼叫返回紀錄；在呼叫 API 前設定逾時計時器，不在原始使用者手勢內先 await。3 項測試驗證無回應 Promise 有界等待、取消及晚到結果隔離、同步拋錯與非同步拒絕清理；完整 46 項通過。無法以網頁計時器中止真正阻塞 JavaScript 執行緒的第三方同步呼叫，若整頁倒數也停止，仍需實機紀錄釐清。

@@ -3,16 +3,29 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import { IOSBleTransport } from '../public/ios-ble.js';
 import { fakeBle } from '../test-support/mock-device.js';
+import { getIOSBluetooth } from '../public/ios-bluetooth.js';
+import { UUID } from '../public/protocol.js';
+
+test('iOS API selector prefers the real Beacio extension, excludes stubs and preserves native fallback', () => {
+  const bluetooth = {}, beacio = { __beacio: true, requestDevice() {} };
+  assert.equal(getIOSBluetooth({ bluetooth, beacio }), beacio);
+  assert.equal(getIOSBluetooth({ bluetooth }), bluetooth);
+  assert.equal(getIOSBluetooth({ bluetooth: { __beacioCDNStub: true } }), null);
+});
 
 const name = 'Multy-ESP32S3-020F3C';
-test('iOS connects the exact scanned object without a picker, then claims, operates and releases', async () => {
+test('iOS authorizes through Beacio in the click gesture before GATT, then claims, operates and releases', async () => {
   const mock = fakeBle({ mtu: 23 }); mock.device.name = name;
-  const transport = new IOSBleTransport({ secure: true, crypto: webcrypto, getBluetooth: () => { throw new Error('Browser picker must not be called'); } });
+  let options;
+  const api = { __beacio: true, requestDevice(value) { options = value; return Promise.resolve(mock.device); } };
+  const transport = new IOSBleTransport({ secure: true, crypto: webcrypto, getBluetooth: () => getIOSBluetooth({ beacio: api, bluetooth: { requestDevice() { throw new Error('Wrong facade'); } } }) });
   const connection = transport.connectScanned({ name, device: mock.device });
-  assert.equal(transport.state, 'Using scanned Multy device');
+  assert.deepEqual(options, { filters: [{ name }], optionalServices: [UUID.service] });
+  assert.equal(transport.state, 'Authorizing Multy via navigator.beacio');
+  assert.equal(mock.device.gatt.connected, false);
   await connection; assert.equal(transport.connected, true);
   assert.equal(transport.device, mock.device);
-  assert.deepEqual(transport.history.map(item => item.state), ['Using scanned Multy device', 'Connecting BLE GATT', 'Discovering BLE service', 'Subscribing BLE notifications', 'Handshaking', 'Connected']);
+  assert.deepEqual(transport.history.map(item => item.state), ['Authorizing Multy via navigator.beacio', 'Connecting BLE GATT', 'Discovering BLE service', 'Subscribing BLE notifications', 'Handshaking', 'Connected']);
   assert.ok(mock.peer.requests.some(item => item.op === 'session.claim'));
   const result = await transport.exchange({ protocol: 'spi', instance: 1, action: 'write', bytes: [65] });
   assert.deepEqual(result.bytes, [65]);
@@ -20,12 +33,12 @@ test('iOS connects the exact scanned object without a picker, then claims, opera
   assert.ok(mock.peer.requests.some(item => item.op === 'session.release'));
 });
 
-test('iOS reports GATT permission denial without retrying a picker or claiming control', async () => {
+test('iOS reports GATT permission denial without retrying or claiming control', async () => {
   const mock = fakeBle(); mock.device.name = name;
   mock.device.gatt.connect = () => { throw new DOMException('Access denied', 'SecurityError'); };
-  const transport = new IOSBleTransport({ secure: true });
+  const transport = new IOSBleTransport({ secure: true, getBluetooth: () => mock.bluetooth });
   await assert.rejects(transport.connectScanned({ name, device: mock.device }), /GATT.*權限遭拒/);
-  assert.match(transport.state, /未重新呼叫 requestDevice/); assert.equal(transport.isOpen, false);
+  assert.match(transport.state, /權限遭拒/); assert.equal(transport.isOpen, false);
   assert.equal(mock.peer.requests.length, 0);
 });
 
@@ -38,14 +51,20 @@ test('iOS GATT timeout disconnects late connection and does not claim control', 
   assert.equal(mock.device.gatt.connected, false); assert.equal(mock.peer.requests.length, 0);
 });
 
-test('iOS refuses unselected, missing or mismatched scanned objects without connecting', async () => {
+test('iOS refuses invalid selection and mismatched authorized objects without connecting', async () => {
   const mock = fakeBle();
-  const transport = new IOSBleTransport({ secure: true });
+  const transport = new IOSBleTransport({ secure: true, getBluetooth: () => ({ requestDevice: async () => ({ ...mock.device, name: 'Other BLE' }) }) });
   await assert.rejects(transport.connect(), /先 Scan/);
   await assert.rejects(transport.connectScanned({ name: 'Other BLE' }), /掃描清單/);
-  await assert.rejects(transport.connectScanned({ name }), /沒有可連線/);
-  await assert.rejects(transport.connectScanned({ name, device: { ...mock.device, name: 'Other BLE' } }), /名稱.*不符/);
+  await assert.rejects(transport.connectScanned({ name }), /名稱不符/);
   assert.equal(mock.device.gatt.connected, false);
+});
+
+test('iOS stalled authorization never attempts GATT on the scanned object', async () => {
+  const mock = fakeBle();
+  const transport = new IOSBleTransport({ secure: true, pickerTimeoutMs: 10, getBluetooth: () => ({ __beacio: true, requestDevice: () => new Promise(() => {}) }) });
+  await assert.rejects(transport.connectScanned({ name, device: mock.device }), /navigator.beacio 沒有回應/);
+  assert.equal(mock.device.gatt.connected, false); assert.equal(mock.peer.requests.length, 0);
 });
 
 test('iOS service discovery failure closes GATT and keeps the failed stage', async () => {

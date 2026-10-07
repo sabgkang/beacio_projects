@@ -87,13 +87,13 @@ Cloudflare Tunnel 對外提供 HTTPS 時也可使用該網域；Beacio 必須獲
 
 iPhone 主頁的 **Scan** 現在只掃描 BLE 廣播：使用 `navigator.bluetooth.requestLEScan()`，列出名稱包含 `Multy`（不分大小寫）的附近裝置與 RSSI，不呼叫裝置選擇、不連線 GATT、不取得控制權。掃描 15 秒後自動停止，可按 Stop scan 提前停止；啟動 10 秒無回應會顯示錯誤。PC 的 Connect／Disconnect 與 USB-Serial、BLE 操作保持原樣。獨立掃描 API 若不可用，會直接提示，不退回 requestDevice。
 
-Safari「要求桌面網站」模式下，iOS 也使用 Scan。掃描區顯示 `Frontend 20261007-ios-direct4 · Scan → direct GATT`；如果未看到此標記，先確認伺服器更新並重新載入頁面。BLE 診斷頁包含平台、觸控點數與預期主頁行為，可用來檢查裝置辨識。
+Safari「要求桌面網站」模式下，iOS 也使用 Scan。掃描區顯示 `Frontend 20261007-ios-auth5 · Scan → authorize → GATT`；如果未看到此標記，先確認伺服器更新並重新載入頁面。BLE 診斷頁包含平台、觸控點數與預期主頁行為，可用來檢查裝置辨識。
 
 收到其他 BLE 廣播但找不到 Multy，與完全收不到廣播會顯示不同提示。掃描找到 Multy 可證明此網站的廣播掃描路徑可用；零廣播本身不能證明一定是掃描故障。
 
-掃描結果每台裝置都有 **Connect**：點選後先停止掃描，直接使用廣播事件保留的原始 `BluetoothDevice` 進行 GATT 連線，不再次呼叫瀏覽器的 `requestDevice()`。此流程參考 Beacio 官方 [DeviceScanner](https://github.com/wklm/beacio-sdk/blob/main/packages/react-sdk/src/components/DeviceScanner.tsx)、[useScan](https://github.com/wklm/beacio-sdk/blob/main/packages/react-sdk/src/hooks/useScan.ts) 與裝置連線實作；GATT／服務／通知步驟各有 15 秒逾時。若擴充功能拒絕 GATT 或服務權限，顯示原始錯誤並關閉連線，不更改權限、不自動重試，也不退回卡住的授權選擇流程。
+掃描結果每台裝置都有 **Connect**：點選後先停止掃描，依官方 [getBluetoothAPI](https://github.com/wklm/beacio-sdk/blob/main/packages/core/src/platform.ts) 的順序，優先使用 `navigator.beacio`（需有 `__beacio` 標記與 requestDevice）；否則使用非 SDK stub 的 `navigator.bluetooth`。在按鈕手勢內，以完整名稱篩選並列出 Multy optionalServices，授權完成後才連線。實機已確認掃描物件直接 GATT 會得到 Device was not authorized，所以不再使用未授權的掃描物件連線。授權 20 秒、GATT／服務／通知各 15 秒逾時，不自動重試。
 
-畫面保留掃描物件交接、GATT 連線、服務探索、通知訂閱、Multy 握手與結果紀錄。握手取得控制權後啟用 UART／I2C／SPI，主按鈕變成 **Disconnect**；斷線後回到 **Scan**。Busy 時不能操作匯流排，可 Disconnect 後再試。iOS 使用獨立的傳輸適配器，PC 的 transport.js 與服務篩選流程沒有修改。
+畫面保留授權 API 來源、GATT 連線、服務探索、通知訂閱、Multy 握手與結果紀錄。握手取得控制權後啟用 UART／I2C／SPI，主按鈕變成 **Disconnect**；斷線後回到 **Scan**。Busy 時不能操作匯流排，可 Disconnect 後再試。iOS 使用獨立的傳輸適配器，PC 的 transport.js 與服務篩選流程沒有修改。診斷頁另有「Beacio API 授權」用來比較官方 API 優先順序與標準 API；選擇視窗仍未出現時，複製包含 CSP 違規的診斷紀錄。未將 API 來源差異或 CSP 判定為已證實的根因。
 
 iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0；PC 不載入 SDK，USB-Serial 與 BLE 傳輸流程維持原樣，伺服器 CSP 也維持原設定。此整合仍需實際 iPhone 驗證。
 
@@ -108,6 +108,8 @@ iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0
 - PWA 尚未啟用，iPhone 背景串流不在本版驗收範圍。
 
 ## 測試與文件
+
+診斷頁版本 `20261007-diag6` 顯示裝置選擇倒數與「取消等待」，並在呼叫前、requestDevice 回傳時與完成／逾時時記錄狀態。選擇按鈕等待期間停用，以避免重複請求，20 秒逾時後恢復；複製紀錄始終可用。取消僅結束網頁等待，不會撤銷擴充功能內部請求；再次測試前使用「重新載入診斷頁」。如果倒數與其他按鈕均無法運作，紀錄是否包含「requestDevice 已回傳」可協助判斷是否卡在同步呼叫或後續 Promise。
 
 ```powershell
 npm test
