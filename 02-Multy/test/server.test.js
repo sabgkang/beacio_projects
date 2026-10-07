@@ -48,7 +48,7 @@ test('TLS needs both files and server defaults allow LAN access', async () => {
   await assert.rejects(serverOptions({ PORT: 'not-a-number' }), /PORT/);
 });
 
-test('Beacio style compatibility is opt-in on the diagnostic document and never permits inline scripts', async () => {
+test('Beacio style compatibility is opt-in on app and diagnostic documents and never permits inline scripts', async () => {
   const server = createAppServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -60,7 +60,11 @@ test('Beacio style compatibility is opt-in on the diagnostic document and never 
     for (const directive of allowed.headers.get('content-security-policy').split(';')) {
       if (!directive.trim().startsWith('style-src-elem ')) assert.doesNotMatch(directive, /unsafe-inline|unsafe-eval/);
     }
-    for (const path of ['/', '/index.html', '/app.js', '/ble-diagnostic-report.html', '/ble-diagnostics.js', '/ble-diagnostics.html?beacioStyles=0']) {
+    for (const path of ['/', '/index.html']) {
+      assert.equal((await fetch(base + path)).headers.get('content-security-policy'), baseline);
+      assert.equal((await fetch(base + path + '?beacioStyles=1')).headers.get('content-security-policy'), allowed.headers.get('content-security-policy'));
+    }
+    for (const path of ['/app.js', '/ble-diagnostic-report.html', '/ble-diagnostics.js', '/ble-diagnostics.html?beacioStyles=0']) {
       const response = await fetch(base + path + (path.includes('?') ? '' : '?beacioStyles=1'));
       assert.equal(response.headers.get('content-security-policy'), baseline);
     }

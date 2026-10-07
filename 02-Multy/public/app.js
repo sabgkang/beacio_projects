@@ -8,7 +8,7 @@ import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-auth5';
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 const scanOnlyIOS = usesIOSScan(navigator);
-document.documentElement.dataset.frontendBuild = '20261007-ios-auth5';
+document.documentElement.dataset.frontendBuild = '20261007-ios-style10';
 document.documentElement.dataset.bleAction = scanOnlyIOS ? 'scan-then-connect' : 'connect';
 document.documentElement.dataset.device = device;
 if (iosBluetooth.platform === 'ios-safari') {
@@ -30,7 +30,7 @@ let iphoneScanner;
 if (scanOnlyIOS) {
   const panel = document.createElement('section'); panel.id = 'iphone-scan-results'; panel.className = 'ble-scan-results';
   const title = document.createElement('h2'); title.textContent = 'Nearby Multy BLE devices';
-  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-auth5 · Scan → authorize → GATT';
+  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-style10 · Scan → authorize → GATT';
   const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點選裝置的 Connect，完成 Beacio 裝置授權後再連線；授權視窗未出現時，請複製 BLE 診斷紀錄。';
   const summary = document.createElement('p'); summary.setAttribute('role', 'status');
   const list = document.createElement('ul');

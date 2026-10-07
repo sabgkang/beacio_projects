@@ -39,9 +39,9 @@ export function createAppServer(tls) {
         return;
       }
       const data = await readFile(target);
-      // Controlled Beacio UI test: only this explicitly requested diagnostic document.
-      // Scripts, style attributes, other pages and all default responses stay strict.
-      if (pathname === '/ble-diagnostics.html' && requestUrl.searchParams.get('beacioStyles') === '1') {
+      // iOS selects this mode before loading the app; default PC responses stay strict.
+      // Only these documents allow style elements. Scripts and style attributes stay strict.
+      if (['/', '/index.html', '/ble-diagnostics.html'].includes(pathname) && requestUrl.searchParams.get('beacioStyles') === '1') {
         headers['Content-Security-Policy'] += "; style-src-elem 'self' 'unsafe-inline'";
       }
       response.writeHead(200, { ...headers, 'Content-Type': mimeTypes[extname(target)] || 'application/octet-stream' });

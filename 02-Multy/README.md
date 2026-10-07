@@ -115,6 +115,8 @@ diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Mul
 
 目前診斷版本為 `20261007-diag9`。實機 A／B 都逾時，紀錄確認 userActivation=true、navigator.beacio 已回傳 Promise，但內嵌樣式被 CSP 阻擋且 body.inert=true。更新後另開 Safari 分頁直接進入 `https://gk3pro.makerkang.com/ble-diagnostics.html?beacioStyles=1`，先測 A，重新載入同一網址後測 B。這個指定診斷網址加入 `style-src-elem 'self' 'unsafe-inline'`，只允許 style 元素；腳本、style 屬性、其他頁面與預設 CSP 維持限制。紀錄會包含測試網址與實際 CSP。若新模式成功，再依實測結果處理 iPhone 主頁；本次沒有變更主頁或韌體。
 
+使用者已確認樣式相容模式的 A／B 都可顯示選擇清單，選 Multy 後成功返回。主頁最新版本 `20261007-ios-style10` 在載入應用程式前，讓 iPhone／iPad Safari 自動進入帶 `?beacioStyles=1` 的主頁，伺服器對該文件提供相同 style 元素相容政策；iOS 桌面網站模式也適用。正常 PC 入口不導向、不更換 Bluetooth API，維持原 CSP 與 USB／BLE 傳輸。iPhone 更新後確認版本標記，再 Scan 並點清單中的 Connect，授權時選擇相同 Multy 裝置。GATT、服務探索、通知與握手仍待主頁實機驗證，尚未因診斷頁選擇成功而判定全部連線完成。
+
 ```powershell
 npm test
 # 在目前 Node 執行環境需要停用測試隔離時：

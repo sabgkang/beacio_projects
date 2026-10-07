@@ -52,3 +52,9 @@ PC 主頁、transport.js、韌體與伺服器 CSP 均未修改。48 項 Node 測
 diag9 以指定網址 `/ble-diagnostics.html?beacioStyles=1` 在既有 CSP 後增加 `style-src-elem 'self' 'unsafe-inline'`，允許內嵌 style 元素，保留 script-src 與 style 屬性限制。此模式只提供診斷文件，主頁、報告頁與其他回應保留原政策。預設網址可作為嚴格 CSP 對照；實際政策與完整 URL 納入紀錄，避免誤讀 Cloudflare 或舊伺服器回應。
 
 更新後以 Safari 新分頁直接開啟相容模式，先按 A；從網址列重新載入相同 URL，再按 B。若兩次出現裝置選擇視窗並成功返回，可支持樣式阻擋參與授權故障，再處理 iPhone 主頁。若仍逾時，另開紀錄頁取得新結果，確認是否仍有樣式違規、body 是否 inert，以及實際 CSP 有沒有指定 style-src-elem。49 項 Node 測試通過，手機結果待驗證。
+
+## 樣式相容模式成功後的主頁整合
+
+使用者確認相容模式 A／B 均正常顯示裝置選擇清單，選 Multy 後顯示「裝置選擇成功，未建立 GATT 連線」。這提供 CSP style 元素限制參與選擇介面故障的實機證據，也顯示加入 Multy optionalServices 本身可成功。之前提供的 diag9 失敗紀錄其實沒有帶相容參數，不是放行樣式後仍失敗的證據。
+
+style10 在主頁以同步外部 script 先識別 iOS Safari（含桌面網站模式），只在需要時導向同頁 `beacioStyles=1`，保留既有 query／hash，然後依原 Scan／授權／GATT 流程執行。伺服器對主頁與 index.html 的明確相容請求加入與成功診斷相同的 style-src-elem；PC 預設頁面仍使用原 CSP、URL 與傳輸 API。51 項測試通過；沒有改 MAC、GATT 服務或 PC transport。診斷選擇成功不等於主頁已完成 GATT、通知、握手與控制權取得，仍需手機主頁驗證。
