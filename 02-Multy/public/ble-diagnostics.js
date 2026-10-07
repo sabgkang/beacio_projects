@@ -1,4 +1,4 @@
-import { iosBluetooth } from './beacio-ios.js';
+import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2';
 import { UUID } from './protocol.js';
 
 const records = [], buttons = [document.getElementById('select-all'), document.getElementById('select-multy')];
@@ -11,6 +11,9 @@ function snapshot() {
   const bluetooth = navigator.bluetooth;
   const environment = {
     origin: location.origin, secureContext: isSecureContext, userAgent: navigator.userAgent,
+    platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
+    expectedMainAction: usesIOSScan(navigator) ? 'scan-only' : 'connect',
+    frontendBuild: '20261007-ios-scan2',
     sdk: iosBluetooth.status, bluetoothAPI: Boolean(bluetooth),
     requestDevice: typeof bluetooth?.requestDevice,
     beacioBootstrap: Boolean(bluetooth?.__beacioBootstrap), beacioStub: Boolean(bluetooth?.__beacioCDNStub),

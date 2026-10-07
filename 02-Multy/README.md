@@ -87,6 +87,8 @@ Cloudflare Tunnel 對外提供 HTTPS 時也可使用該網域；Beacio 必須獲
 
 iPhone 主頁的 **Scan** 現在只掃描 BLE 廣播：使用 `navigator.bluetooth.requestLEScan()`，列出名稱包含 `Multy`（不分大小寫）的附近裝置與 RSSI，不呼叫裝置選擇、不連線 GATT、不取得控制權。掃描 15 秒後自動停止，可按 Stop scan 提前停止；啟動 10 秒無回應會顯示錯誤。PC 的 Connect／Disconnect 與 USB-Serial、BLE 操作保持原樣。獨立掃描 API 若不可用，會直接提示，不退回 requestDevice。
 
+Safari「要求桌面網站」模式下，iOS 也使用 Scan。掃描區顯示 `Frontend 20261007-ios-scan2 · iOS scan-only`；如果未看到此標記，先確認伺服器更新並重新載入頁面。BLE 診斷頁包含平台、觸控點數與預期主頁行為，可用來檢查裝置辨識。
+
 收到其他 BLE 廣播但找不到 Multy，與完全收不到廣播會顯示不同提示。掃描找到 Multy 可證明此網站的廣播掃描路徑可用；零廣播本身不能證明一定是掃描故障。此 iPhone 按鈕目前僅用於掃描診斷，不能操作 ESP32；需要比較裝置選擇時可使用 BLE 診斷頁。
 
 iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0；PC 不載入 SDK，USB-Serial 與 BLE 傳輸流程維持原樣，伺服器 CSP 也維持原設定。此整合仍需實際 iPhone 驗證。

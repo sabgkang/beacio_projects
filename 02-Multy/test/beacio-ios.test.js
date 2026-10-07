@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { initializeIOSBluetooth, isIOSSafari } from '../public/beacio-ios.js';
+import { initializeIOSBluetooth, isIOSSafari, usesIOSScan } from '../public/beacio-ios.js';
+
+test('iOS desktop website mode uses scan-only while actual PCs keep Connect', () => {
+  const desktopUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15';
+  assert.equal(usesIOSScan({ userAgent: desktopUA, platform: 'MacIntel', maxTouchPoints: 5 }), true);
+  assert.equal(usesIOSScan({ userAgent: desktopUA, platform: 'MacIntel', maxTouchPoints: 0 }), false);
+  assert.equal(usesIOSScan({ userAgent: 'Chrome Windows', platform: 'Win32', maxTouchPoints: 10 }), false);
+  assert.equal(usesIOSScan({ userAgent: 'Mozilla iPhone Safari', platform: 'iPhone' }), true);
+  assert.equal(usesIOSScan({ userAgent: 'Android Chrome', platform: 'Linux', maxTouchPoints: 5 }), false);
+});
 
 test('PC USB and native BLE remain untouched: no SDK load or DOM changes', async () => {
   const bluetooth = { requestDevice() {} };

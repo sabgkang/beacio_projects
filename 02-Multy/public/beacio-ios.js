@@ -2,6 +2,11 @@ export function isIOSSafari(nav) {
   return Boolean(nav && (/iPhone|iPad|iPod/i.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1)) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(nav.userAgent));
 }
 
+// iPhone's Request Desktop Website can expose a Macintosh UA with touch support.
+export function usesIOSScan(nav) {
+  return Boolean(nav && (/iPhone|iPod/i.test(nav.userAgent) || isIOSSafari(nav)));
+}
+
 // Desktop returns before loading scripts, registering events or modifying APIs.
 export async function initializeIOSBluetooth({ nav = globalThis.navigator, doc = globalThis.document, timeoutMs = 8000 } = {}) {
   if (!isIOSSafari(nav)) return { platform: 'other', status: 'not-loaded', violations: [] };
