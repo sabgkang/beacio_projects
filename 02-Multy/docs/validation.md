@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 最新完整回歸 32 項通過，沒有跳過；另涵蓋 iOS SDK 載入隔離與診斷資源 CSP |
+| Node 自動測試 | 最新完整回歸 35 項通過，沒有跳過；另涵蓋 iPhone 純掃描、名稱過濾、停止／逾時清理及 PC 傳輸回歸 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -30,3 +30,5 @@ Safari／Beacio 連線修正：在點擊時取得 Bluetooth API，不保存頁�
 iPhone 專用 SDK 與診斷：新增官方 Beacio SDK 2.2.0 本機資源，僅 iPhone／iPad Safari 載入。PC 初始化測試確認不載入 SDK、不操作 DOM、不替換原生 Bluetooth API；桌面瀏覽器確認主頁沒有 SDK script，診斷頁顯示 `sdk: not-loaded`。本次沒有修改 transport.js、韌體或伺服器 CSP。32 項回歸測試全部通過。尚未在實際 iPhone 確認 SDK 能解決選擇視窗卡住；需在更新後的診斷頁測試並取得紀錄。
 
 ![BLE 診斷頁（桌面檢查）](screenshots/ble-diagnostics.png)
+
+iPhone 主頁 Scan 改為獨立廣播掃描，15 秒自動停止，列出名稱包含 Multy 的裝置與 RSSI；不呼叫 requestDevice、GATT 或控制權協定。新增測試驗證原始按鈕手勢內開始掃描、廣播去重與名稱過濾、不使用選擇／GATT、手動停止、自動停止、啟動逾時後較晚取得 handle 的清理，以及 API 不支援／拒絕時不退回選擇裝置。完整 35 項回歸通過，尚待使用者 iPhone／Beacio 實機確認掃描結果。
