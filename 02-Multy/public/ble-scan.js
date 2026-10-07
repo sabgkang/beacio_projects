@@ -31,7 +31,7 @@ export class MultyScanner {
       const name = event.name || event.device?.name || '';
       if (/multy/i.test(name)) {
         const key = event.device?.id || name;
-        if (this.devices.has(key) || this.devices.size < 100) this.devices.set(key, { name, rssi: Number.isFinite(event.rssi) ? event.rssi : null });
+        if (this.devices.has(key) || this.devices.size < 100) this.devices.set(key, { name, rssi: Number.isFinite(event.rssi) ? event.rssi : null, device: event.device || this.devices.get(key)?.device });
       }
       this.publish();
     };

@@ -8,6 +8,7 @@ class ScanAPI extends EventTarget {
     const event = new Event('advertisementreceived');
     Object.assign(event, { name, device: { id, get gatt() { throw new Error('Scan must not access GATT'); } }, rssi });
     this.dispatchEvent(event);
+    return event.device;
   }
 }
 
@@ -16,10 +17,11 @@ test('scan runs in the gesture, lists only Multy names and deduplicates advertis
   api.requestLEScan = options => { called = true; assert.deepEqual(options, { acceptAllAdvertisements: true, keepRepeatedDevices: true }); return Promise.resolve({ stop() { stopped++; } }); };
   const scanner = new MultyScanner({ getBluetooth: () => api });
   const start = scanner.start(); assert.equal(called, true); await start;
-  api.emit('Other BLE', 'a', -50); api.emit('Multy-ESP32S3-020F3C', 'b', -65); api.emit('Multy-ESP32S3-020F3C', 'b', -60);
+  api.emit('Other BLE', 'a', -50); api.emit('Multy-ESP32S3-020F3C', 'b', -65); const raw = api.emit('Multy-ESP32S3-020F3C', 'b', -60);
   api.emit('My-multy-board', 'c', undefined);
   assert.equal(scanner.advertisements, 4); assert.equal(scanner.devices.size, 2);
   assert.equal(scanner.devices.get('b').rssi, -60); assert.equal(scanner.devices.get('c').rssi, null);
+  assert.equal(scanner.devices.get('b').device, raw);
   scanner.stop(); assert.equal(stopped, 1); api.emit('Multy-late', 'd', -40);
   assert.equal(scanner.advertisements, 4); assert.equal(scanner.busy, false);
 });

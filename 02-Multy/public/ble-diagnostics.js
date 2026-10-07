@@ -13,7 +13,7 @@ function snapshot() {
     origin: location.origin, secureContext: isSecureContext, userAgent: navigator.userAgent,
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
     expectedMainAction: usesIOSScan(navigator) ? 'scan-then-connect' : 'connect',
-    frontendBuild: '20261007-ios-connect3',
+    frontendBuild: '20261007-ios-direct4',
     sdk: iosBluetooth.status, bluetoothAPI: Boolean(bluetooth),
     requestDevice: typeof bluetooth?.requestDevice,
     beacioBootstrap: Boolean(bluetooth?.__beacioBootstrap), beacioStub: Boolean(bluetooth?.__beacioCDNStub),

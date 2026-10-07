@@ -2,13 +2,13 @@ import { detectDevice, parseHex, formatBytes, formatUartInput, UART_ROW_BYTES, U
 import { BleTransport, SerialTransport } from './transport.js';
 import { PINS, ReceiveBuffer, fromHex } from './protocol.js';
 import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2';
-import { MultyScanner } from './ble-scan.js';
-import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-connect3';
+import { MultyScanner } from './ble-scan.js?v=20261007-ios-direct4';
+import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-direct4';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 const scanOnlyIOS = usesIOSScan(navigator);
-document.documentElement.dataset.frontendBuild = '20261007-ios-connect3';
+document.documentElement.dataset.frontendBuild = '20261007-ios-direct4';
 document.documentElement.dataset.bleAction = scanOnlyIOS ? 'scan-then-connect' : 'connect';
 document.documentElement.dataset.device = device;
 if (iosBluetooth.platform === 'ios-safari') {
@@ -30,8 +30,8 @@ let iphoneScanner;
 if (scanOnlyIOS) {
   const panel = document.createElement('section'); panel.id = 'iphone-scan-results'; panel.className = 'ble-scan-results';
   const title = document.createElement('h2'); title.textContent = 'Nearby Multy BLE devices';
-  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-connect3 · Scan → select → connect';
-  const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點選裝置的 Connect；若 Beacio 開啟授權視窗，請選擇相同名稱的 Multy。';
+  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-direct4 · Scan → direct GATT';
+  const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點選裝置的 Connect，直接使用掃描物件連線；若 Beacio 拒絕 GATT 權限，會顯示錯誤。';
   const summary = document.createElement('p'); summary.setAttribute('role', 'status');
   const list = document.createElement('ul');
   const stages = document.createElement('pre'); stages.id = 'ios-connection-stages'; stages.setAttribute('role', 'log');
