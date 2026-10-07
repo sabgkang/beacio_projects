@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 最新完整回歸 54 項通過，沒有跳過；另涵蓋掃描中立即選取、穩定點擊目標、關閉停止與 PC 傳輸回歸 |
+| Node 自動測試 | 最新完整回歸 56 項通過，沒有跳過；另涵蓋 iPhone 直接 Connect、取消／選錯裝置保護與 PC 傳輸回歸 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -58,3 +58,5 @@ diag8 實機 A／B 均逾時；使用者取得紀錄，證明獨立紀錄途徑�
 使用者回報 style10 的主頁 Connect 沒有選擇視窗，再點顯示 no device found；線上主頁版本與樣式 CSP 已確認生效。picker11 去除 iOS 精確名稱篩選，直接重用成功診斷 B 的參數建構函式；選擇回傳後驗證同名，再沿用原 GATT 流程。52 項測試通過；測試確認原始點擊中同步呼叫、只對授權物件連線（廣播物件連線會令測試失敗），另一個 Multy／無名稱裝置均不啟動 GATT 或控制權。PC transport.js、scanner、韌體及 CSP 未改，名稱篩選是否為實際剩餘故障仍需手機 picker11 實測。
 
 使用者確認 picker11 在 iPhone 已完成 Scan、Beacio 裝置選擇與 Multy 連線。live12 新增即時掃描 dialog，保留裝置列及按鈕 DOM，廣播只更新 RSSI／文字。54 項測試通過；新增測試在掃描仍 active 時點選（不等自動完成）、確認多次廣播後同一按鈕仍存在、先停止掃描與關閉 dialog、關閉停止與完成結果可重新查看、連線期間按鈕停用。原 IOSBleTransport、PC transport.js、韌體與政策未改；視窗在真正 iPhone 上與 Beacio 授權介面的銜接仍待 live12 實測。
+
+connect13 依使用者新要求移除主頁前置掃描，按 Connect 直接呼叫 IOSBleTransport.connect()，在原始點擊內開啟 Beacio 選擇器；主頁不再匯入或建立 scanner／live picker。56 項測試通過，新增直接 Connect 測試將 requestLEScan 設為必定拋錯，驗證流程不呼叫它，且同步開啟選擇、GATT、claim、disconnect 均完成；另驗證取消與非 Multy／無名稱裝置不建立 GATT。原 PC transport.js、樣式相容政策與韌體未改，真正 iPhone 的一步 Connect 尚待實測。

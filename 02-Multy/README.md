@@ -121,6 +121,8 @@ diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Mul
 
 使用者確認 picker11 已在 iPhone 完成 Multy 連線。目前主頁版本 `20261007-ios-live12`：按 Scan 立即開啟「附近的 Multy 裝置」視窗，廣播抵達後即更新名稱與 RSSI；Connect 在掃描期間可用，不必等 15 秒。裝置列與按鈕保留原本的 DOM 節點，避免反覆廣播替換按鈕造成點擊中斷。點選會停止掃描並關閉 Multy 視窗，再於同一次點擊開啟既有 Beacio 授權視窗；仍需選取同名 Multy。15 秒為自動停止上限，停止後清單保留可供選擇；關閉視窗也會停止掃描，可用「顯示掃描裝置」重新查看。PC 流程與韌體未改。
 
+依使用者要求，目前主頁版本 `20261007-ios-connect13` 改為直接 **Connect → Beacio 選擇 Multy → Connected**。主按鈕名稱與行為都改為 Connect，直接使用已成功的 acceptAllDevices 與 Multy optionalServices，不先執行 requestLEScan、不開啟自訂掃描視窗。選取名稱以 Multy 開頭的裝置後建立 GATT、訂閱通知並握手取得控制權；取消或選到其他裝置不建立連線。連線後按鈕為 Disconnect，斷線後回到 Connect。保留 iPhone 樣式相容設定與階段紀錄，PC USB／BLE 與韌體不變。
+
 ```powershell
 npm test
 # 在目前 Node 執行環境需要停用測試隔離時：

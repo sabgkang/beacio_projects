@@ -1,4 +1,4 @@
-import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2';
+import { iosBluetooth } from './beacio-ios.js?v=20261007-ios-scan2';
 import { UUID } from './protocol.js';
 import { getIOSBluetooth } from './ios-bluetooth.js?v=20261007-ios-auth5';
 import { PickerDiagnostic } from './picker-diagnostic.js?v=20261007-diag6';
@@ -25,8 +25,8 @@ function snapshot() {
     origin: location.origin, diagnosticURL: location.href, styleCompatibilityRequested: styleCompatibility,
     secureContext: isSecureContext, userAgent: navigator.userAgent,
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
-    expectedMainAction: usesIOSScan(navigator) ? 'scan-then-connect' : 'connect',
-    frontendBuild: '20261007-ios-live12',
+    expectedMainAction: 'connect',
+    frontendBuild: '20261007-ios-connect13',
     diagnosticBuild: '20261007-diag9',
     preferredAPISource: getIOSBluetooth() === navigator.beacio && navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth',
     beacioRequestDevice: typeof navigator.beacio?.requestDevice,

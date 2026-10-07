@@ -54,8 +54,7 @@ test('iOS GATT timeout disconnects late connection and does not claim control', 
 
 test('iOS refuses invalid selection and mismatched authorized objects without connecting', async () => {
   const mock = fakeBle();
-  const transport = new IOSBleTransport({ secure: true, getBluetooth: () => ({ requestDevice: async () => ({ ...mock.device, name: 'Other BLE' }) }) });
-  await assert.rejects(transport.connect(), /先 Scan/);
+  const transport = new IOSBleTransport({ secure: true, getBluetooth: () => ({ requestDevice: async () => ({ ...mock.device, name: 'Multy-ESP32S3-OTHER' }) }) });
   await assert.rejects(transport.connectScanned({ name: 'Other BLE' }), /掃描清單/);
   await assert.rejects(transport.connectScanned({ name }), /名稱不符/);
   assert.equal(mock.device.gatt.connected, false);
@@ -72,10 +71,37 @@ test('iOS unfiltered chooser rejects an unnamed device or another Multy before G
   for (const selectedName of [undefined, 'Multy-ESP32S3-OTHER']) {
     const mock = fakeBle(); mock.device.name = selectedName;
     const transport = new IOSBleTransport({ secure: true, getBluetooth: () => mock.bluetooth });
-    await assert.rejects(transport.connectScanned({ name }), /名稱不符/);
+    await assert.rejects(transport.connectScanned({ name }), /名稱不符|Multy 開頭/);
     assert.equal(mock.device.gatt.connected, false);
     assert.equal(mock.peer.requests.length, 0);
   }
+});
+
+test('iOS Connect directly opens the picker in the click without scanning, then completes GATT and claims control', async () => {
+  const mock = fakeBle({ mtu: 23 }); mock.device.name = name;
+  let options;
+  const api = { __beacio: true, requestLEScan() { throw new Error('Direct connect must not scan'); }, requestDevice(value) { options = value; return Promise.resolve(mock.device); } };
+  const transport = new IOSBleTransport({ secure: true, crypto: webcrypto, getBluetooth: () => api });
+  const connection = transport.connect();
+  assert.equal(options.acceptAllDevices, true);
+  assert.ok(options.optionalServices.includes(UUID.service));
+  assert.equal(transport.state, 'Authorizing Multy via navigator.beacio');
+  assert.equal(mock.device.gatt.connected, false);
+  await connection;
+  assert.equal(transport.connected, true);
+  assert.ok(mock.peer.requests.some(request => request.op === 'session.claim'));
+  await transport.disconnect(); assert.equal(mock.device.gatt.connected, false);
+});
+
+test('iOS direct chooser rejects non-Multy or unnamed devices before GATT and handles cancellation', async () => {
+  for (const selectedName of [undefined, 'Other BLE']) {
+    const mock = fakeBle(); mock.device.name = selectedName;
+    const transport = new IOSBleTransport({ secure: true, getBluetooth: () => mock.bluetooth });
+    await assert.rejects(transport.connect(), /Multy 開頭/);
+    assert.equal(mock.device.gatt.connected, false); assert.equal(mock.peer.requests.length, 0);
+  }
+  const transport = new IOSBleTransport({ secure: true, getBluetooth: () => ({ requestDevice: () => Promise.reject(new DOMException('Cancelled', 'NotFoundError')) }) });
+  await assert.rejects(transport.connect(), { name: 'NotFoundError' }); assert.equal(transport.isOpen, false);
 });
 
 test('iOS service discovery failure closes GATT and keeps the failed stage', async () => {

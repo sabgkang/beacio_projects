@@ -2,15 +2,13 @@ import { detectDevice, parseHex, formatBytes, formatUartInput, UART_ROW_BYTES, U
 import { BleTransport, SerialTransport } from './transport.js';
 import { PINS, ReceiveBuffer, fromHex } from './protocol.js';
 import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2';
-import { MultyScanner } from './ble-scan.js?v=20261007-ios-direct4';
-import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-picker11';
-import { LiveBlePicker } from './live-ble-picker.js?v=20261007-ios-live12';
+import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-connect13';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
-const scanOnlyIOS = usesIOSScan(navigator);
-document.documentElement.dataset.frontendBuild = '20261007-ios-live12';
-document.documentElement.dataset.bleAction = scanOnlyIOS ? 'scan-then-connect' : 'connect';
+const iosClient = usesIOSScan(navigator);
+document.documentElement.dataset.frontendBuild = '20261007-ios-connect13';
+document.documentElement.dataset.bleAction = 'connect';
 document.documentElement.dataset.device = device;
 if (iosBluetooth.platform === 'ios-safari') {
   const diagnostics = document.createElement('a'); diagnostics.href = '/ble-diagnostics.html?beacioStyles=1'; diagnostics.textContent = 'BLE 診斷';
@@ -23,32 +21,17 @@ const callbacks = { onState: () => updateConnection(), onEvent: frame => receive
   updateConnection(); scheduleLogs(); notify(error.message);
 } };
 const serialTransport = new SerialTransport(callbacks);
-const bleTransport = scanOnlyIOS ? new IOSBleTransport(callbacks) : new BleTransport(callbacks);
+const bleTransport = iosClient ? new IOSBleTransport(callbacks) : new BleTransport(callbacks);
 let method = device === 'pc' ? 'serial' : 'ble';
 let transport = method === 'serial' ? serialTransport : bleTransport;
 let connecting = false;
-let iphoneScanner;
-let livePicker;
-if (scanOnlyIOS) {
-  const panel = document.createElement('section'); panel.id = 'iphone-scan-results'; panel.className = 'ble-scan-results';
-  const title = document.createElement('h2'); title.textContent = 'Nearby Multy BLE devices';
-  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-live12 · Scan → authorize → GATT';
-  const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點裝置的 Connect，再於 Beacio 選擇視窗選取同名 Multy 裝置。視窗可能列出其他 BLE 裝置；選錯不會連線。授權視窗未出現時，請複製 BLE 診斷紀錄。';
-  const summary = document.createElement('p'); summary.setAttribute('role', 'status');
-  const showDevices = document.createElement('button'); showDevices.type = 'button'; showDevices.textContent = '顯示掃描裝置';
-  showDevices.addEventListener('click', () => livePicker.show());
+if (iosClient) {
+  const panel = document.createElement('section'); panel.id = 'ios-connection-details'; panel.className = 'ble-scan-results';
+  const title = document.createElement('h2'); title.textContent = 'Multy BLE connection';
+  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-connect13 · Connect → select → GATT';
+  const guidance = document.createElement('p'); guidance.textContent = '按 Connect 直接開啟 Beacio 裝置選擇視窗，選取 Multy 裝置後連線。選到其他裝置不會連線；授權視窗未出現時，請複製 BLE 診斷紀錄。';
   const stages = document.createElement('pre'); stages.id = 'ios-connection-stages'; stages.setAttribute('role', 'log');
-  panel.append(title, build, guidance, summary, showDevices, stages); $('.connection').after(panel);
-  livePicker = new LiveBlePicker({ onClose: () => iphoneScanner.stop(), onSelect: item => {
-    // Close our modal before Beacio opens its own chooser, in this same tap.
-    iphoneScanner.stop(); livePicker.close(); void changeConnection(item);
-  } });
-  iphoneScanner = new MultyScanner({ onChange: scanner => {
-    summary.textContent = `${scanner.message} · ${scanner.advertisements} advertisements · ${scanner.devices.size} Multy devices`;
-    livePicker.render(scanner, connecting || transport.isOpen);
-    updateConnection();
-  } });
-  window.addEventListener('pagehide', () => iphoneScanner.stop());
+  panel.append(title, build, guidance, stages); $('.connection').after(panel);
 }
 let selectedProtocol = 'uart';
 let selectedInstance = 1;
@@ -298,22 +281,20 @@ systemTheme.addEventListener('change', event => { if (!['light', 'dark'].include
 applyTheme(document.documentElement.dataset.theme);
 
 function updateConnection() {
-  if (scanOnlyIOS) method = 'ble';
+  if (iosClient) method = 'ble';
   document.querySelectorAll('[data-transport]').forEach(button => {
     const active = button.dataset.transport === method;
-    const unavailable = scanOnlyIOS && button.dataset.transport === 'serial';
+    const unavailable = iosClient && button.dataset.transport === 'serial';
     button.hidden = unavailable;
     button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); button.disabled = unavailable || transport.isOpen || connecting;
   });
   $('#port-setting').hidden = method !== 'serial';
   $('#serial-port').textContent = serialTransport.label;
-  $('#connect').textContent = transport.isOpen ? 'Disconnect' : scanOnlyIOS ? iphoneScanner.busy ? 'Stop scan' : 'Scan' : 'Connect';
+  $('#connect').textContent = transport.isOpen ? 'Disconnect' : 'Connect';
   $('#connect').disabled = connecting;
-  $('#connection-status').textContent = scanOnlyIOS && !connecting && !transport.isOpen && !bleTransport.history.length ? iphoneScanner.message : transport.state;
-  if (scanOnlyIOS) {
+  $('#connection-status').textContent = transport.state;
+  if (iosClient) {
     $('#ios-connection-stages').textContent = bleTransport.history.map(stage => `${stage.time} ${stage.state}`).join('\n');
-    document.querySelectorAll('#iphone-scan-results button').forEach(button => { button.disabled = connecting || transport.isOpen; });
-    livePicker.render(iphoneScanner, connecting || transport.isOpen);
   }
   $('.connection-status').classList.toggle('connected', transport.connected);
   $('.ready-status').textContent = transport.connected ? 'Device control acquired' : transport.state === 'Busy' ? 'Device controlled by another client' : 'No device control';
@@ -325,24 +306,18 @@ function updateConnection() {
   $('.mobile-device-icon').textContent = method === 'ble' ? 'ᛒ' : '▣';
 }
 document.querySelectorAll('[data-transport]').forEach(button => button.addEventListener('click', () => {
-  if (transport.isOpen || connecting || (scanOnlyIOS && button.dataset.transport !== 'ble')) return;
+  if (transport.isOpen || connecting || (iosClient && button.dataset.transport !== 'ble')) return;
   method = button.dataset.transport;
   transport = method === 'serial' ? serialTransport : bleTransport;
   updateConnection();
 }));
 $('#connect').addEventListener('click', () => {
   if (connecting) return;
-  if (scanOnlyIOS && !transport.isOpen) {
-    if (iphoneScanner.busy) iphoneScanner.stop();
-    else { bleTransport.history = []; livePicker.show(); void iphoneScanner.start(); }
-    return;
-  }
   void changeConnection();
 });
-async function changeConnection(scannedItem) {
+async function changeConnection() {
   if (connecting) return;
   connecting = true;
-  if (scanOnlyIOS) iphoneScanner.stop();
   updateConnection();
   try {
     if (transport.isOpen) {
@@ -350,7 +325,7 @@ async function changeConnection(scannedItem) {
       for (const channel of channels.values()) channel.ended = true;
       scheduleLogs(); notify('Device disconnected.');
     } else {
-      await (scannedItem && scanOnlyIOS ? bleTransport.connectScanned(scannedItem) : transport.connect());
+      await transport.connect();
       if (transport.connected) {
         for (const channel of channels.values()) {
           channel.log.clear(); channel.ended = false; channel.deviceDropped = 0; channel.rxErrors = 0;
@@ -372,7 +347,6 @@ async function changeConnection(scannedItem) {
   }
 }
 
-if (iphoneScanner) iphoneScanner.publish();
 
 function updateLayout() {
   const compact = mobileLayout.matches;

@@ -13,7 +13,8 @@ export class IOSBleTransport extends BleTransport {
       // Same option bag as the successful diagnostic B; validate the returned
       // device afterwards instead of relying on Beacio's exact-name filter.
       return { requestDevice: () => Promise.resolve(api.requestDevice(beacioReferenceRequest({ bluetooth: api }, true).options)).then(device => {
-        if (!device?.name || device.name !== selectedName) throw new Error('授權裝置與所選 Multy 名稱不符，請在選擇視窗選取同一個 Multy 裝置。');
+        if (!device?.name || !/^Multy/i.test(device.name)) throw new Error('請在裝置選擇視窗選取名稱以 Multy 開頭的裝置。');
+        if (selectedName && device.name !== selectedName) throw new Error('授權裝置與所選 Multy 名稱不符，請在選擇視窗選取同一個 Multy 裝置。');
         return device;
       }) };
     } });
@@ -21,13 +22,20 @@ export class IOSBleTransport extends BleTransport {
     this.apiSource = () => apiSource;
     this.history = [];
   }
-  async connect() { throw new Error('請先 Scan，再點選清單中的 Multy 裝置連線。'); }
+  connect() {
+    if (this.isOpen) return Promise.reject(new Error('Disconnect the current device first.'));
+    this.history = []; this.selectName(null);
+    return this.connectAuthorized();
+  }
   connectScanned(item) {
     if (this.isOpen) return Promise.reject(new Error('Disconnect the current device first.'));
     this.history = [];
     const reject = message => { const error = new Error(message); this.setState(`Error: ${message}`); return Promise.reject(error); };
     if (!item || typeof item.name !== 'string' || !/multy/i.test(item.name)) return reject('請選擇掃描清單中的 Multy 裝置。');
     this.selectName(item.name);
+    return this.connectAuthorized();
+  }
+  connectAuthorized() {
     return super.connect().catch(error => {
       if (['SecurityError', 'NotAllowedError'].includes(error.name)) {
         const failure = new Error(`BLE 授權／GATT 權限遭拒（${error.name}）：${error.message}`, { cause: error });
