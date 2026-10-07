@@ -16,6 +16,14 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
     assert.doesNotMatch(html, /rel="manifest"/);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.equal((await fetch(base + '/app.js')).status, 200);
+    for (const path of ['/beacio-ios.js', '/ble-diagnostics.html', '/ble-diagnostics.js', '/ble-diagnostics.css', '/vendor/beacio-core-2.2.0.js']) {
+      const diagnostic = await fetch(base + path);
+      assert.equal(diagnostic.status, 200);
+      const csp = diagnostic.headers.get('content-security-policy');
+      assert.match(csp, /script-src 'self'/);
+      assert.match(csp, /connect-src 'self'/);
+      assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
+    }
     assert.equal((await fetch(base + '/styles.css', { method: 'HEAD' })).status, 200);
     for (const path of ['/server.js', '/pwa/manifest.webmanifest', '/package.json', '/missing', '/certs/server.pem', '/certs/server-key.pem', '/firmware/src/main.cpp', '/plan.md']) {
       assert.equal((await fetch(base + path)).status, 404);

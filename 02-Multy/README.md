@@ -85,6 +85,10 @@ Cloudflare Tunnel 對外提供 HTTPS 時也可使用該網域；Beacio 必須獲
 
 ## 連線與錯誤處理
 
+iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0；PC 不載入 SDK，USB-Serial 與 BLE 傳輸流程維持原樣，伺服器 CSP 也維持原設定。此整合仍需實際 iPhone 驗證。
+
+若停在 Selecting BLE device，使用頁尾的「BLE 診斷」，或開啟 `https://gk3pro.makerkang.com/ble-diagnostics.html`。先測試「選擇所有 BLE 裝置」，再測試「只選擇 Multy 服務」，最後複製診斷紀錄。診斷只開啟選擇視窗，不連接 GATT 或取得 ESP32 控制權；紀錄包含 SDK 狀態、網站來源、API 與 CSP 資訊，可用來區分網站橋接與服務篩選問題。
+
 - 一次只允許一個控制端，兩種傳輸共用控制權；每五秒心跳，20 秒失聯釋放。
 - BLE 先以 20-byte 分段握手，再以無副作用測試驗證較大分段；失敗後重連使用相容模式。每個完整通知訊息需 ACK。
 - 逾時可能表示硬體操作已完成但回覆遺失；網頁結束連線，不自動重送。請先檢查目標狀態。

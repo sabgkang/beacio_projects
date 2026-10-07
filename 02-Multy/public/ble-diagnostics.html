@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multy · iPhone BLE 診斷</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/ble-diagnostics.css">
+  <script type="module" src="/ble-diagnostics.js"></script>
+</head>
+<body>
+  <main class="workspace diagnostic-workspace">
+    <h1>iPhone BLE 連線診斷</h1>
+    <p>此頁只測試裝置選擇，不建立 GATT 連線或傳送硬體命令。</p>
+    <p>先按「選擇所有 BLE 裝置」，再測試「只找 Multy 服務」。若出現選擇視窗，可選擇 Multy 或取消；兩次測試之間請先關閉視窗。</p>
+    <div class="diagnostic-actions">
+      <button class="primary" id="select-all">選擇所有 BLE 裝置</button>
+      <button class="primary" id="select-multy">只找 Multy 服務</button>
+      <button id="refresh-diagnostics">更新狀態</button>
+      <button id="copy-diagnostics">複製診斷紀錄</button>
+    </div>
+    <h2>目前環境</h2>
+    <pre id="environment"></pre>
+    <h2>測試紀錄</h2>
+    <pre id="diagnostic-log" role="log" aria-live="polite"></pre>
+    <p><a href="/">返回 Multy</a></p>
+  </main>
+</body>
+</html>

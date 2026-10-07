@@ -1,0 +1,6 @@
+.diagnostic-workspace { max-width: 900px; padding: 24px; }
+.diagnostic-workspace h1 { font-size: 1.6rem; }
+.diagnostic-workspace p { line-height: 1.7; }
+.diagnostic-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+.diagnostic-actions button { min-height: 44px; }
+.diagnostic-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--field); border: 1px solid var(--border); padding: 14px; border-radius: 8px; font-size: .8125rem; line-height: 1.6; }

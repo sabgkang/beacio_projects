@@ -1,10 +1,15 @@
 import { detectDevice, parseHex, formatBytes, formatUartInput, UART_ROW_BYTES, UART_MAX_ROW_BYTES } from './core.js';
 import { BleTransport, SerialTransport } from './transport.js';
 import { PINS, ReceiveBuffer, fromHex } from './protocol.js';
+import { iosBluetooth } from './beacio-ios.js';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 document.documentElement.dataset.device = device;
+if (iosBluetooth.platform === 'ios-safari') {
+  const diagnostics = document.createElement('a'); diagnostics.href = '/ble-diagnostics.html'; diagnostics.textContent = 'BLE 診斷';
+  $('.app-footer').append(diagnostics);
+}
 const mobileLayout = matchMedia('(max-width: 760px)');
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
 const callbacks = { onState: () => updateConnection(), onEvent: frame => receiveEvent(frame), onDisconnect: error => {
