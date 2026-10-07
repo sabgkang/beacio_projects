@@ -3,6 +3,8 @@
 .ble-scan-results h2 { font-size: 1rem; margin: 0 0 10px; }
 .ble-scan-results p, .ble-scan-results li { font-size: .875rem; overflow-wrap: anywhere; }
 .ble-scan-results ul { margin: 10px 0 0; padding-left: 20px; }
+.ble-scan-results li { margin-bottom: 10px; }
+.ble-scan-results pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
 :root {
   color-scheme: light;
   --page: #f4f7fc; --surface: #fff; --card: #fff; --inset: #f8faff;
