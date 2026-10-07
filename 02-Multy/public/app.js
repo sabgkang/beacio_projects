@@ -3,16 +3,16 @@ import { BleTransport, SerialTransport } from './transport.js';
 import { PINS, ReceiveBuffer, fromHex } from './protocol.js';
 import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2';
 import { MultyScanner } from './ble-scan.js?v=20261007-ios-direct4';
-import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-auth5';
+import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-picker11';
 
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 const scanOnlyIOS = usesIOSScan(navigator);
-document.documentElement.dataset.frontendBuild = '20261007-ios-style10';
+document.documentElement.dataset.frontendBuild = '20261007-ios-picker11';
 document.documentElement.dataset.bleAction = scanOnlyIOS ? 'scan-then-connect' : 'connect';
 document.documentElement.dataset.device = device;
 if (iosBluetooth.platform === 'ios-safari') {
-  const diagnostics = document.createElement('a'); diagnostics.href = '/ble-diagnostics.html'; diagnostics.textContent = 'BLE 診斷';
+  const diagnostics = document.createElement('a'); diagnostics.href = '/ble-diagnostics.html?beacioStyles=1'; diagnostics.textContent = 'BLE 診斷';
   $('.app-footer').append(diagnostics);
 }
 const mobileLayout = matchMedia('(max-width: 760px)');
@@ -30,8 +30,8 @@ let iphoneScanner;
 if (scanOnlyIOS) {
   const panel = document.createElement('section'); panel.id = 'iphone-scan-results'; panel.className = 'ble-scan-results';
   const title = document.createElement('h2'); title.textContent = 'Nearby Multy BLE devices';
-  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-style10 · Scan → authorize → GATT';
-  const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點選裝置的 Connect，完成 Beacio 裝置授權後再連線；授權視窗未出現時，請複製 BLE 診斷紀錄。';
+  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-picker11 · Scan → authorize → GATT';
+  const guidance = document.createElement('p'); guidance.textContent = 'Scan 後點裝置的 Connect，再於 Beacio 選擇視窗選取同名 Multy 裝置。視窗可能列出其他 BLE 裝置；選錯不會連線。授權視窗未出現時，請複製 BLE 診斷紀錄。';
   const summary = document.createElement('p'); summary.setAttribute('role', 'status');
   const list = document.createElement('ul');
   const stages = document.createElement('pre'); stages.id = 'ios-connection-stages'; stages.setAttribute('role', 'log');

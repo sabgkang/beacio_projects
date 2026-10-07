@@ -58,3 +58,5 @@ diag9 以指定網址 `/ble-diagnostics.html?beacioStyles=1` 在既有 CSP 後�
 使用者確認相容模式 A／B 均正常顯示裝置選擇清單，選 Multy 後顯示「裝置選擇成功，未建立 GATT 連線」。這提供 CSP style 元素限制參與選擇介面故障的實機證據，也顯示加入 Multy optionalServices 本身可成功。之前提供的 diag9 失敗紀錄其實沒有帶相容參數，不是放行樣式後仍失敗的證據。
 
 style10 在主頁以同步外部 script 先識別 iOS Safari（含桌面網站模式），只在需要時導向同頁 `beacioStyles=1`，保留既有 query／hash，然後依原 Scan／授權／GATT 流程執行。伺服器對主頁與 index.html 的明確相容請求加入與成功診斷相同的 style-src-elem；PC 預設頁面仍使用原 CSP、URL 與傳輸 API。51 項測試通過；沒有改 MAC、GATT 服務或 PC transport。診斷選擇成功不等於主頁已完成 GATT、通知、握手與控制權取得，仍需手機主頁驗證。
+
+主頁 style10 仍沒有選擇視窗，第二次 Connect 顯示 no device found。已確認線上主頁與 CSP 正確。剩餘可直接比對的差異是主頁用 filters.name，而成功診斷 B 用 acceptAllDevices；主頁也先執行 requestLEScan，診斷則沒有。picker11 先將 iOS 主頁選擇參數與診斷 B 完全對齊，保留掃描流程及同名裝置驗證，不直接連接廣播物件。52 項測試通過，手機結果待驗證；如果仍失敗，下一步需比較前置掃描狀態，而非宣布名稱篩選已證實是根因。

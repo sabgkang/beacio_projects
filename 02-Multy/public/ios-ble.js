@@ -1,5 +1,5 @@
 import { BleTransport } from './transport.js';
-import { UUID } from './protocol.js';
+import { beacioReferenceRequest } from './beacio-reference.js?v=20261007-diag8';
 import { getIOSBluetooth } from './ios-bluetooth.js?v=20261007-ios-auth5';
 
 // iOS adapter only; desktop continues to instantiate the original BleTransport.
@@ -10,8 +10,10 @@ export class IOSBleTransport extends BleTransport {
       const api = getBluetooth();
       apiSource = api?.__beacio === true ? 'navigator.beacio' : 'navigator.bluetooth';
       if (!api?.requestDevice) return null;
-      return { requestDevice: () => Promise.resolve(api.requestDevice({ filters: [{ name: selectedName }], optionalServices: [UUID.service] })).then(device => {
-        if (device.name && device.name !== selectedName) throw new Error('授權裝置與所選 Multy 名稱不符，請重新選擇。');
+      // Same option bag as the successful diagnostic B; validate the returned
+      // device afterwards instead of relying on Beacio's exact-name filter.
+      return { requestDevice: () => Promise.resolve(api.requestDevice(beacioReferenceRequest({ bluetooth: api }, true).options)).then(device => {
+        if (!device?.name || device.name !== selectedName) throw new Error('授權裝置與所選 Multy 名稱不符，請在選擇視窗選取同一個 Multy 裝置。');
         return device;
       }) };
     } });

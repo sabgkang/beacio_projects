@@ -19,8 +19,9 @@ test('iOS authorizes through Beacio in the click gesture before GATT, then claim
   let options;
   const api = { __beacio: true, requestDevice(value) { options = value; return Promise.resolve(mock.device); } };
   const transport = new IOSBleTransport({ secure: true, crypto: webcrypto, getBluetooth: () => getIOSBluetooth({ beacio: api, bluetooth: { requestDevice() { throw new Error('Wrong facade'); } } }) });
-  const connection = transport.connectScanned({ name, device: mock.device });
-  assert.deepEqual(options, { filters: [{ name }], optionalServices: [UUID.service] });
+  const scanned = { name, gatt: { connect() { throw new Error('Scanned object must never connect'); } } };
+  const connection = transport.connectScanned({ name, device: scanned });
+  assert.deepEqual(options, { acceptAllDevices: true, optionalServices: ['battery_service', 'device_information', 'generic_access', 'heart_rate', 0x180f, 0x180a, UUID.service] });
   assert.equal(transport.state, 'Authorizing Multy via navigator.beacio');
   assert.equal(mock.device.gatt.connected, false);
   await connection; assert.equal(transport.connected, true);
@@ -65,6 +66,16 @@ test('iOS stalled authorization never attempts GATT on the scanned object', asyn
   const transport = new IOSBleTransport({ secure: true, pickerTimeoutMs: 10, getBluetooth: () => ({ __beacio: true, requestDevice: () => new Promise(() => {}) }) });
   await assert.rejects(transport.connectScanned({ name, device: mock.device }), /navigator.beacio 沒有回應/);
   assert.equal(mock.device.gatt.connected, false); assert.equal(mock.peer.requests.length, 0);
+});
+
+test('iOS unfiltered chooser rejects an unnamed device or another Multy before GATT', async () => {
+  for (const selectedName of [undefined, 'Multy-ESP32S3-OTHER']) {
+    const mock = fakeBle(); mock.device.name = selectedName;
+    const transport = new IOSBleTransport({ secure: true, getBluetooth: () => mock.bluetooth });
+    await assert.rejects(transport.connectScanned({ name }), /名稱不符/);
+    assert.equal(mock.device.gatt.connected, false);
+    assert.equal(mock.peer.requests.length, 0);
+  }
 });
 
 test('iOS service discovery failure closes GATT and keeps the failed stage', async () => {
