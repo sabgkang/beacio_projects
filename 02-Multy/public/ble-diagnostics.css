@@ -4,3 +4,8 @@
 .diagnostic-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
 .diagnostic-actions button { min-height: 44px; }
 .diagnostic-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--field); border: 1px solid var(--border); padding: 14px; border-radius: 8px; font-size: .8125rem; line-height: 1.6; }
+#diagnostic-recovery { width: min(92vw, 800px); max-height: 90dvh; overflow: auto; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); }
+#diagnostic-recovery::backdrop { background: #001530b3; }
+#diagnostic-recovery h2 { font-size: 1.25rem; }
+#diagnostic-recovery p { line-height: 1.6; }
+#recovery-report { width: 100%; min-height: 200px; font-size: 16px; color: var(--text); background: var(--field); border: 1px solid var(--border); padding: 10px; user-select: text; -webkit-user-select: text; }

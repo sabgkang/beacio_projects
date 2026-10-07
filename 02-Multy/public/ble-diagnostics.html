@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Multy · iPhone BLE 診斷</title>
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/ble-diagnostics.css">
-  <script type="module" src="/ble-diagnostics.js?v=20261007-diag6"></script>
+  <link rel="stylesheet" href="/ble-diagnostics.css?v=20261007-diag7">
+  <script type="module" src="/ble-diagnostics.js?v=20261007-diag7"></script>
 </head>
 <body>
   <main class="workspace diagnostic-workspace">
     <h1>iPhone BLE 連線診斷</h1>
     <p>此頁只測試裝置選擇，不建立 GATT 連線或傳送硬體命令。</p>
-    <p>診斷版本：20261007-diag6</p>
+    <p>診斷版本：20261007-diag7</p>
     <p>先按「選擇所有 BLE 裝置」，再測試「只找 Multy 服務」。若出現選擇視窗，可選擇 Multy 或取消；兩次測試之間請先關閉視窗。</p>
     <div class="diagnostic-actions">
       <button class="primary" id="select-all">選擇所有 BLE 裝置</button>
@@ -20,6 +20,7 @@
       <button class="primary" id="select-beacio">Beacio API 授權</button>
       <button id="refresh-diagnostics">更新狀態</button>
       <button id="copy-diagnostics">複製診斷紀錄</button>
+      <button id="show-report">顯示診斷紀錄</button>
       <button id="cancel-picker" disabled>取消等待</button>
       <button id="reload-diagnostics">重新載入診斷頁</button>
     </div>
@@ -30,5 +31,17 @@
     <pre id="diagnostic-log" role="log" aria-live="polite"></pre>
     <p><a href="/">返回 Multy</a></p>
   </main>
+  <dialog id="diagnostic-recovery" aria-labelledby="recovery-title">
+    <h2 id="recovery-title">診斷紀錄與恢復操作</h2>
+    <p>這是 Multy 的紀錄視窗，不是 BLE 授權視窗。可複製下方文字；如果剪貼簿失敗，長按文字框手動全選並複製。</p>
+    <textarea id="recovery-report" readonly aria-label="可手動複製的診斷紀錄" rows="12"></textarea>
+    <p id="recovery-status" role="status">紀錄已顯示。</p>
+    <div class="diagnostic-actions">
+      <button id="recovery-copy">複製紀錄</button>
+      <button id="recovery-select">全選文字</button>
+      <button id="recovery-reload">重新載入</button>
+      <button id="recovery-close">關閉紀錄視窗</button>
+    </div>
+  </dialog>
 </body>
 </html>

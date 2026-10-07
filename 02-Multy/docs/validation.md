@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 最新完整回歸 46 項通過，沒有跳過；另涵蓋官方 Beacio API 優先順序、診斷倒數／取消／逾時及 PC 傳輸回歸 |
+| Node 自動測試 | 最新完整回歸 47 項通過，沒有跳過；另涵蓋官方 Beacio API 優先順序、診斷倒數／取消／逾時、遮擋資訊及 PC 傳輸回歸 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -44,3 +44,7 @@ iPhone 主頁 Scan 改為獨立廣播掃描，15 秒自動停止，列出名稱�
 使用者實機回報 direct4 的 GATT 回覆 Device was not authorized，確認掃描許可不等於該裝置的 GATT 授權。auth5 恢復授權先於連線，依官方 platform.ts 優先使用 navigator.beacio，再 fallback 到非 stub 的 navigator.bluetooth；新增 API 來源紀錄與診斷頁比較按鈕。完整 43 項測試通過，授權逾時不會對掃描物件執行 GATT；未更改 PC 傳輸或伺服器 CSP。選擇視窗未出現的實機根因仍待 CSP／API 診斷紀錄確認，不宣稱此次修正已解決。
 
 診斷等待版本 diag6 新增可見倒數、取消等待、重新載入與同步呼叫返回紀錄；在呼叫 API 前設定逾時計時器，不在原始使用者手勢內先 await。3 項測試驗證無回應 Promise 有界等待、取消及晚到結果隔離、同步拋錯與非同步拒絕清理；完整 46 項通過。無法以網頁計時器中止真正阻塞 JavaScript 執行緒的第三方同步呼叫，若整頁倒數也停止，仍需實機紀錄釐清。
+
+diag7 針對使用者回報倒數結束後複製與重新載入不能操作，新增原生 showModal 診斷恢復視窗。逾時／取消自動顯示文字框，剪貼簿等待限制 1.5 秒，失敗時可全選後長按手動複製。開啟前只讀取按鈕的命中元素、dialog／iframe 與 inert／pointer-events 資訊，不移除擴充功能介面或改變授權。桌面瀏覽器確認複製成功、全選範圍覆蓋全部 6,668 字元、重新載入恢復初始頁面；完整 47 項測試通過。本次僅更改診斷頁，PC 傳輸與 CSP 未修改。實際 iPhone 恢復視窗及 Beacio 遮擋原因仍待驗證，桌面結果不能證明已解決手機的授權問題。
+
+![診斷恢復視窗（桌面檢查）](screenshots/ble-diagnostic-recovery.png)

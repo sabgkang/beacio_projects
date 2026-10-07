@@ -2,6 +2,7 @@ import { iosBluetooth, usesIOSScan } from './beacio-ios.js?v=20261007-ios-scan2'
 import { UUID } from './protocol.js';
 import { getIOSBluetooth } from './ios-bluetooth.js?v=20261007-ios-auth5';
 import { PickerDiagnostic } from './picker-diagnostic.js?v=20261007-diag6';
+import { inspectDiagnosticOverlay } from './diagnostic-overlay.js?v=20261007-diag7';
 
 const records = [], buttons = [document.getElementById('select-all'), document.getElementById('select-multy'), document.getElementById('select-beacio')];
 const pickerStatus = document.getElementById('picker-status');
@@ -22,7 +23,7 @@ function snapshot() {
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
     expectedMainAction: usesIOSScan(navigator) ? 'scan-then-connect' : 'connect',
     frontendBuild: '20261007-ios-auth5',
-    diagnosticBuild: '20261007-diag6',
+    diagnosticBuild: '20261007-diag7',
     preferredAPISource: getIOSBluetooth() === navigator.beacio && navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth',
     beacioRequestDevice: typeof navigator.beacio?.requestDevice,
     sdk: iosBluetooth.status, bluetoothAPI: Boolean(bluetooth),
@@ -55,6 +56,7 @@ async function select(all, preferred = false) {
     else {
       pickerStatus.textContent = result.status === 'timeout' ? '20 秒內沒有選擇回覆。請複製診斷紀錄；重新載入後再測試。' : '已取消網頁等待。這不會取消擴充功能內部的選擇呼叫；請重新載入後再測試。';
       log(pickerStatus.textContent, { visibility: document.visibilityState, cspViolations: iosBluetooth.violations });
+      showReport();
     }
   } catch (error) { pickerStatus.textContent = `選擇失敗：${error.message}`; log('裝置選擇未完成', { name: error.name, message: error.message }); }
   finally { buttons.forEach(button => { button.disabled = false; }); cancelButton.disabled = true; snapshot(); }
@@ -67,9 +69,35 @@ document.getElementById('reload-diagnostics').addEventListener('click', () => lo
 document.addEventListener('visibilitychange', () => log('Safari 前景狀態變更', { visibility: document.visibilityState }));
 document.getElementById('refresh-diagnostics').addEventListener('click', snapshot);
 document.getElementById('copy-diagnostics').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(document.getElementById('environment').textContent + '\n\n' + records.join('\n\n')); log('診斷紀錄已複製。'); }
-  catch { log('無法存取剪貼簿；請手動選取紀錄複製。'); }
+  showReport(); await copyReport();
 });
+const recovery = document.getElementById('diagnostic-recovery');
+const report = document.getElementById('recovery-report');
+function showReport() {
+  if (!recovery.open) {
+    try { log('複製／重新載入按鈕遮擋檢查', inspectDiagnosticOverlay()); }
+    catch (error) { log('無法收集遮擋狀態', { message: error.message }); }
+  }
+  snapshot(); report.value = document.getElementById('environment').textContent + '\n\n' + records.join('\n\n');
+  if (!recovery.open) recovery.showModal();
+}
+function selectReport() { report.focus(); report.select(); report.setSelectionRange(0, report.value.length); }
+async function copyReport() {
+  const status = document.getElementById('recovery-status'); status.textContent = '已收到複製操作，正在寫入剪貼簿…';
+  selectReport();
+  let timer;
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+    await Promise.race([navigator.clipboard.writeText(report.value), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Clipboard timeout')), 1500); })]);
+    status.textContent = '診斷紀錄已複製。';
+  } catch { status.textContent = '剪貼簿沒有完成。文字已全選，請長按文字框並使用 iPhone 的「複製」。'; }
+  finally { clearTimeout(timer); }
+}
+document.getElementById('show-report').addEventListener('click', showReport);
+document.getElementById('recovery-copy').addEventListener('click', copyReport);
+document.getElementById('recovery-select').addEventListener('click', selectReport);
+document.getElementById('recovery-reload').addEventListener('click', () => location.reload());
+document.getElementById('recovery-close').addEventListener('click', () => recovery.close());
 window.addEventListener('beacio:extension:ready', () => { log('收到 Beacio extension ready 事件'); snapshot(); });
 snapshot(); log('診斷頁已載入；SDK 僅在 iPhone／iPad Safari 載入。');
 fetch(location.pathname, { cache: 'no-store' }).then(response => log('網站安全標頭', { csp: response.headers.get('content-security-policy'), permissionsPolicy: response.headers.get('permissions-policy') })).catch(error => log('無法讀取安全標頭', { message: error.message }));
