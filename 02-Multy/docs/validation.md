@@ -8,7 +8,7 @@
 | 實機燒錄 | COM4 ESP32-S3 revision v0.2；確認 16 MB Flash／8 MB PSRAM；燒錄及 Flash 雜湊驗證通過 |
 | 實機 USB 串列冒煙測試 | hello、session.claim、session.ping、session.release 通過；韌體 1.0.0；裝置 Multy-1446DA020F3C |
 | 記憶體占用 | RAM 45,716／327,680 bytes；程式 Flash 973,749／6,553,600 bytes |
-| Node 自動測試 | 最新完整回歸 48 項通過，沒有跳過；另涵蓋官網流程對照、獨立紀錄頁、診斷倒數／取消／逾時及 PC 傳輸回歸 |
+| Node 自動測試 | 最新完整回歸 49 項通過，沒有跳過；另涵蓋診斷頁樣式政策範圍、官網流程對照、獨立紀錄頁及 PC 傳輸回歸 |
 | JavaScript 語法與變更空白檢查 | 通過 |
 | HTTPS 腳本 | PowerShell 語法檢查通過；尚未實際執行 mkcert 安裝與憑證信任流程 |
 | 瀏覽器介面 | 桌面六卡片、390 px 手機尺寸、主題、分頁及最大化檢查通過；未發現主控台錯誤 |
@@ -50,3 +50,5 @@ diag7 針對使用者回報倒數結束後複製與重新載入不能操作，�
 ![診斷恢復視窗（桌面檢查）](screenshots/ble-diagnostic-recovery.png)
 
 使用者回報 diag7 恢復視窗仍不能操作。比對 01-Test 與 beacio.com/home.js 後，diag8 新增標準服務與加入 Multy UUID 的 A/B picker-only 測試，並在逾時時自動儲存本機紀錄，新增不載入 SDK、不呼叫 BLE 的獨立紀錄頁。完整 48 項 Node 測試通過，驗證官網 API 優先順序與 UUID 為唯一參數差異，以及獨立頁資源可存取且不引用 BLE 程式。PC 主頁、transport.js、韌體與 CSP 均未改；A/B 與獨立頁效果仍待 iPhone 實測，不宣稱授權已修復。
+
+diag8 實機 A／B 均逾時；使用者取得紀錄，證明獨立紀錄途徑提供了本次需要的證據。兩次 navigator.beacio 可用、userActivation=true、同步呼叫有返回，網頁保持 visible；各有兩筆 style-src-elem／inline 違規，開啟 Multy 恢復視窗前 body.inert=true，按鈕 disabled=false 但命中元素僅 HTML。確認樣式阻擋與背景停用，仍未證明哪個擴充功能介面造成或排除其他橋接問題。diag9 加入只限 /ble-diagnostics.html?beacioStyles=1 的內嵌 style 元素相容測試。49 項回歸通過，驗證主頁、資源、報告頁、錯誤回應與預設診斷頁仍為原 CSP，腳本不允許 unsafe-inline／unsafe-eval。主頁傳輸與韌體未改，手機新模式尚待實測。

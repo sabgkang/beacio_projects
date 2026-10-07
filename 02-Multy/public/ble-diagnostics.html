@@ -6,13 +6,15 @@
   <title>Multy · iPhone BLE 診斷</title>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/ble-diagnostics.css?v=20261007-diag8">
-  <script type="module" src="/ble-diagnostics.js?v=20261007-diag8"></script>
+  <script type="module" src="/ble-diagnostics.js?v=20261007-diag9"></script>
 </head>
 <body>
   <main class="workspace diagnostic-workspace">
     <h1>iPhone BLE 連線診斷</h1>
     <p>此頁只測試裝置選擇，不建立 GATT 連線或傳送硬體命令。</p>
-    <p>診斷版本：20261007-diag8</p>
+    <p>診斷版本：20261007-diag9</p>
+    <p id="style-mode" role="status"></p>
+    <p><a href="/ble-diagnostics.html?beacioStyles=1">測試 Beacio 樣式相容模式</a>：只在這個診斷網址允許內嵌 style 元素，腳本與其他頁面限制不變。<a href="/ble-diagnostics.html">返回嚴格 CSP 模式</a>。</p>
     <p>官網對照：先按「官網流程 A：標準服務」，重新載入後再按「官網流程 B：加入 Multy UUID」。A 與 beacio.com 使用相同 API 順序與選擇參數；B 只增加 Multy 服務。兩者都不連線 GATT。A 可選心率裝置或 Multy；即使選到 Multy，也沒有授權讀寫它的自訂服務。</p>
     <p>若逾時後整頁無法操作，紀錄已嘗試自動儲存在此網站的本機空間。請另開 Safari 分頁，從網址列直接開啟 <a href="/ble-diagnostic-report.html">/ble-diagnostic-report.html</a>，查看上次紀錄。</p>
     <p>先按「選擇所有 BLE 裝置」，再測試「只找 Multy 服務」。若出現選擇視窗，可選擇 Multy 或取消；兩次測試之間請先關閉視窗。</p>

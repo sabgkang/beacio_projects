@@ -44,3 +44,11 @@ Multy 的 Scan 呼叫 `requestLEScan()`，清單物件來自廣播事件。之�
 由於使用者回報 diag7 視窗仍無法操作，diag8 在逾時／取消／開啟報告時自動將文字儲存至此 origin 的 localStorage，並新增 `/ble-diagnostic-report.html`。此頁不載入 SDK、不呼叫 BLE API，使用者可另開 Safari 分頁從網址列直接進入並長按文字複製。需相同 origin、瀏覽模式及可用本機儲存；這不是上傳紀錄的服務，也不能保證避開所有擴充功能問題。
 
 PC 主頁、transport.js、韌體與伺服器 CSP 均未修改。48 項 Node 測試通過；尚未在實際 iPhone 確認 A/B 或獨立紀錄頁效果，尚未提交或推送。
+
+## diag8 實機紀錄與 diag9 下一步
+
+使用者回覆 A、B 都逾時。兩次都是已啟用 navigator.beacio、userActivation=true，requestDevice 同步返回後 Promise 持續未完成。兩次各記錄兩筆 style-src-elem／inline 違規；逾時收集時尚未開啟 Multy 恢復 dialog，body 已為 inert=true，複製與重新載入按鈕未 disabled，但 elementsFromPoint 只返回 HTML。這解釋了背景按鈕不能操作，並提供樣式阻擋的實際證據。A 沒有自訂 Multy UUID 也失敗，因此自訂 UUID 不是這個現象的必要條件；該測試尚未進入服務探索，GATT 快取也不是目前優先排查方向。
+
+diag9 以指定網址 `/ble-diagnostics.html?beacioStyles=1` 在既有 CSP 後增加 `style-src-elem 'self' 'unsafe-inline'`，允許內嵌 style 元素，保留 script-src 與 style 屬性限制。此模式只提供診斷文件，主頁、報告頁與其他回應保留原政策。預設網址可作為嚴格 CSP 對照；實際政策與完整 URL 納入紀錄，避免誤讀 Cloudflare 或舊伺服器回應。
+
+更新後以 Safari 新分頁直接開啟相容模式，先按 A；從網址列重新載入相同 URL，再按 B。若兩次出現裝置選擇視窗並成功返回，可支持樣式阻擋參與授權故障，再處理 iPhone 主頁。若仍逾時，另開紀錄頁取得新結果，確認是否仍有樣式違規、body 是否 inert，以及實際 CSP 有沒有指定 style-src-elem。49 項 Node 測試通過，手機結果待驗證。

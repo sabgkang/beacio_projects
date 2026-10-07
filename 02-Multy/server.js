@@ -25,7 +25,8 @@ export function createAppServer(tls) {
       return;
     }
     try {
-      const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+      const requestUrl = new URL(request.url, 'http://localhost');
+      const pathname = decodeURIComponent(requestUrl.pathname);
       if (pathname.includes('\\') || pathname.includes('\0')) {
         response.writeHead(403, headers);
         response.end('Forbidden');
@@ -38,6 +39,11 @@ export function createAppServer(tls) {
         return;
       }
       const data = await readFile(target);
+      // Controlled Beacio UI test: only this explicitly requested diagnostic document.
+      // Scripts, style attributes, other pages and all default responses stay strict.
+      if (pathname === '/ble-diagnostics.html' && requestUrl.searchParams.get('beacioStyles') === '1') {
+        headers['Content-Security-Policy'] += "; style-src-elem 'self' 'unsafe-inline'";
+      }
       response.writeHead(200, { ...headers, 'Content-Type': mimeTypes[extname(target)] || 'application/octet-stream' });
       response.end(request.method === 'HEAD' ? undefined : data);
     } catch (error) {

@@ -113,6 +113,8 @@ iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0
 
 diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Multy UUID」；A 採用 beacio.com 實際 API 與選擇參數，B 只增加 Multy UUID。兩者都不連線 GATT，測試間請重新載入。若恢復視窗也不能操作，逾時時會嘗試自動儲存紀錄；另開 Safari 分頁，從網址列直接開啟 `https://gk3pro.makerkang.com/ble-diagnostic-report.html`。此頁不載入 SDK、不呼叫 BLE，讀取同網站、同瀏覽模式的上次本機紀錄。完整比對與判讀方式見 [Beacio 比對紀錄](docs/beacio-comparison.md)。
 
+目前診斷版本為 `20261007-diag9`。實機 A／B 都逾時，紀錄確認 userActivation=true、navigator.beacio 已回傳 Promise，但內嵌樣式被 CSP 阻擋且 body.inert=true。更新後另開 Safari 分頁直接進入 `https://gk3pro.makerkang.com/ble-diagnostics.html?beacioStyles=1`，先測 A，重新載入同一網址後測 B。這個指定診斷網址加入 `style-src-elem 'self' 'unsafe-inline'`，只允許 style 元素；腳本、style 屬性、其他頁面與預設 CSP 維持限制。紀錄會包含測試網址與實際 CSP。若新模式成功，再依實測結果處理 iPhone 主頁；本次沒有變更主頁或韌體。
+
 ```powershell
 npm test
 # 在目前 Node 執行環境需要停用測試隔離時：

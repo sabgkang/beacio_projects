@@ -8,6 +8,8 @@ import { beacioReferenceRequest } from './beacio-reference.js?v=20261007-diag8';
 const records = [], buttons = ['select-all', 'select-multy', 'select-beacio', 'select-reference', 'select-reference-multy'].map(id => document.getElementById(id));
 const pickerStatus = document.getElementById('picker-status');
 const cancelButton = document.getElementById('cancel-picker');
+const styleCompatibility = new URLSearchParams(location.search).get('beacioStyles') === '1';
+document.getElementById('style-mode').textContent = styleCompatibility ? '樣式相容測試模式：請確認下方實際 CSP 包含 style-src-elem 的 unsafe-inline。' : '標準嚴格 CSP 模式。';
 const picker = new PickerDiagnostic({
   onProgress: seconds => { pickerStatus.textContent = `等待 Beacio 裝置選擇回覆，剩餘 ${seconds} 秒。倒數持續表示網頁仍在運作；可隨時複製紀錄或取消等待。`; },
   onReturned: () => log('requestDevice 已回傳，等待 Promise 完成；網頁未進入 GATT。')
@@ -20,11 +22,12 @@ function log(message, detail) {
 function snapshot() {
   const bluetooth = navigator.bluetooth;
   const environment = {
-    origin: location.origin, secureContext: isSecureContext, userAgent: navigator.userAgent,
+    origin: location.origin, diagnosticURL: location.href, styleCompatibilityRequested: styleCompatibility,
+    secureContext: isSecureContext, userAgent: navigator.userAgent,
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
     expectedMainAction: usesIOSScan(navigator) ? 'scan-then-connect' : 'connect',
     frontendBuild: '20261007-ios-auth5',
-    diagnosticBuild: '20261007-diag8',
+    diagnosticBuild: '20261007-diag9',
     preferredAPISource: getIOSBluetooth() === navigator.beacio && navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth',
     beacioRequestDevice: typeof navigator.beacio?.requestDevice,
     sdk: iosBluetooth.status, bluetoothAPI: Boolean(bluetooth),
@@ -107,4 +110,4 @@ document.getElementById('recovery-reload').addEventListener('click', () => locat
 document.getElementById('recovery-close').addEventListener('click', () => recovery.close());
 window.addEventListener('beacio:extension:ready', () => { log('收到 Beacio extension ready 事件'); snapshot(); });
 snapshot(); log('診斷頁已載入；SDK 僅在 iPhone／iPad Safari 載入。');
-fetch(location.pathname, { cache: 'no-store' }).then(response => log('網站安全標頭', { csp: response.headers.get('content-security-policy'), permissionsPolicy: response.headers.get('permissions-policy') })).catch(error => log('無法讀取安全標頭', { message: error.message }));
+fetch(location.pathname + location.search, { cache: 'no-store' }).then(response => log('網站安全標頭', { csp: response.headers.get('content-security-policy'), permissionsPolicy: response.headers.get('permissions-policy') })).catch(error => log('無法讀取安全標頭', { message: error.message }));
