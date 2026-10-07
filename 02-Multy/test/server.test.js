@@ -16,7 +16,7 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
     assert.doesNotMatch(html, /rel="manifest"/);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.equal((await fetch(base + '/app.js')).status, 200);
-    for (const path of ['/diagnostic-overlay.js', '/picker-diagnostic.js', '/ios-bluetooth.js', '/ios-ble.js', '/ble-scan.js', '/beacio-ios.js', '/ble-diagnostics.html', '/ble-diagnostics.js', '/ble-diagnostics.css', '/vendor/beacio-core-2.2.0.js']) {
+    for (const path of ['/ble-diagnostic-report.html', '/ble-diagnostic-report.js', '/beacio-reference.js', '/diagnostic-overlay.js', '/picker-diagnostic.js', '/ios-bluetooth.js', '/ios-ble.js', '/ble-scan.js', '/beacio-ios.js', '/ble-diagnostics.html', '/ble-diagnostics.js', '/ble-diagnostics.css', '/vendor/beacio-core-2.2.0.js']) {
       const diagnostic = await fetch(base + path);
       assert.equal(diagnostic.status, 200);
       const csp = diagnostic.headers.get('content-security-policy');
@@ -25,6 +25,10 @@ test('serves the app and keeps private files and PWA reservation inaccessible', 
       assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
     }
     assert.equal((await fetch(base + '/styles.css', { method: 'HEAD' })).status, 200);
+    const reportPage = await (await fetch(base + '/ble-diagnostic-report.html')).text();
+    assert.doesNotMatch(reportPage, /src="[^\"]*(?:beacio-ios|vendor\/beacio|ble-diagnostics\.js)/);
+    const reportScript = await (await fetch(base + '/ble-diagnostic-report.js')).text();
+    assert.doesNotMatch(reportScript, /navigator\.(?:bluetooth|beacio)|requestDevice|requestLEScan/);
     for (const path of ['/server.js', '/pwa/manifest.webmanifest', '/package.json', '/missing', '/certs/server.pem', '/certs/server-key.pem', '/firmware/src/main.cpp', '/plan.md']) {
       assert.equal((await fetch(base + path)).status, 404);
     }

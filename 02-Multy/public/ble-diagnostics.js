@@ -3,8 +3,9 @@ import { UUID } from './protocol.js';
 import { getIOSBluetooth } from './ios-bluetooth.js?v=20261007-ios-auth5';
 import { PickerDiagnostic } from './picker-diagnostic.js?v=20261007-diag6';
 import { inspectDiagnosticOverlay } from './diagnostic-overlay.js?v=20261007-diag7';
+import { beacioReferenceRequest } from './beacio-reference.js?v=20261007-diag8';
 
-const records = [], buttons = [document.getElementById('select-all'), document.getElementById('select-multy'), document.getElementById('select-beacio')];
+const records = [], buttons = ['select-all', 'select-multy', 'select-beacio', 'select-reference', 'select-reference-multy'].map(id => document.getElementById(id));
 const pickerStatus = document.getElementById('picker-status');
 const cancelButton = document.getElementById('cancel-picker');
 const picker = new PickerDiagnostic({
@@ -23,7 +24,7 @@ function snapshot() {
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
     expectedMainAction: usesIOSScan(navigator) ? 'scan-then-connect' : 'connect',
     frontendBuild: '20261007-ios-auth5',
-    diagnosticBuild: '20261007-diag7',
+    diagnosticBuild: '20261007-diag8',
     preferredAPISource: getIOSBluetooth() === navigator.beacio && navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth',
     beacioRequestDevice: typeof navigator.beacio?.requestDevice,
     sdk: iosBluetooth.status, bluetoothAPI: Boolean(bluetooth),
@@ -37,16 +38,17 @@ function snapshot() {
   document.getElementById('environment').textContent = JSON.stringify(environment, null, 2);
   return environment;
 }
-async function select(all, preferred = false) {
+async function select(all, preferred = false, reference = null) {
   if (picker.active) return;
   snapshot();
-  const api = preferred ? getIOSBluetooth() : navigator.bluetooth;
+  const referenceRequest = reference === null ? null : beacioReferenceRequest(navigator, reference);
+  const api = referenceRequest ? referenceRequest.api : preferred ? getIOSBluetooth() : navigator.bluetooth;
   if (!api?.requestDevice) { log('找不到 Bluetooth API；請確認 Safari 的 Beacio 網站權限。'); return; }
   buttons.forEach(button => { button.disabled = true; });
   cancelButton.disabled = false;
   try {
-    const options = preferred ? { filters: [{ namePrefix: 'Multy' }], optionalServices: [UUID.service] } : all ? { acceptAllDevices: true, optionalServices: [UUID.service] } : { filters: [{ services: [UUID.service] }], optionalServices: [UUID.service] };
-    log(preferred ? '使用官方 API 優先順序請求 Multy 授權' : all ? '呼叫選擇所有裝置' : '呼叫服務篩選', { apiSource: api === navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth', userActivation: navigator.userActivation?.isActive ?? null, options });
+    const options = referenceRequest ? referenceRequest.options : preferred ? { filters: [{ namePrefix: 'Multy' }], optionalServices: [UUID.service] } : all ? { acceptAllDevices: true, optionalServices: [UUID.service] } : { filters: [{ services: [UUID.service] }], optionalServices: [UUID.service] };
+    log(referenceRequest ? `官網流程對照${reference ? ' + Multy UUID' : '（標準服務）'}` : preferred ? '使用官方 API 優先順序請求 Multy 授權' : all ? '呼叫選擇所有裝置' : '呼叫服務篩選', { apiSource: api === navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth', userActivation: navigator.userActivation?.isActive ?? null, options });
     // No await before requestDevice: retain the original trusted button click.
     const result = await picker.start(() => api.requestDevice(options));
     if (result.status === 'selected') {
@@ -64,6 +66,8 @@ async function select(all, preferred = false) {
 buttons[0].addEventListener('click', () => select(true));
 buttons[1].addEventListener('click', () => select(false));
 buttons[2].addEventListener('click', () => select(false, true));
+buttons[3].addEventListener('click', () => select(true, true, false));
+buttons[4].addEventListener('click', () => select(true, true, true));
 cancelButton.addEventListener('click', () => picker.cancel());
 document.getElementById('reload-diagnostics').addEventListener('click', () => location.reload());
 document.addEventListener('visibilitychange', () => log('Safari 前景狀態變更', { visibility: document.visibilityState }));
@@ -79,6 +83,9 @@ function showReport() {
     catch (error) { log('無法收集遮擋狀態', { message: error.message }); }
   }
   snapshot(); report.value = document.getElementById('environment').textContent + '\n\n' + records.join('\n\n');
+  // Read the report from a fresh page when a third-party picker blocks this tab.
+  try { localStorage.setItem('multy-ble-diagnostic-report', JSON.stringify({ savedAt: new Date().toISOString(), text: report.value })); }
+  catch (error) { log('診斷紀錄本機儲存失敗', { message: error.message }); }
   if (!recovery.open) recovery.showModal();
 }
 function selectReport() { report.focus(); report.select(); report.setSelectionRange(0, report.value.length); }

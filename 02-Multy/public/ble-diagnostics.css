@@ -9,3 +9,4 @@
 #diagnostic-recovery h2 { font-size: 1.25rem; }
 #diagnostic-recovery p { line-height: 1.6; }
 #recovery-report { width: 100%; min-height: 200px; font-size: 16px; color: var(--text); background: var(--field); border: 1px solid var(--border); padding: 10px; user-select: text; -webkit-user-select: text; }
+#saved-report { width: 100%; min-height: 50vh; font-size: 16px; color: var(--text); background: var(--surface); user-select: text; -webkit-user-select: text; }
