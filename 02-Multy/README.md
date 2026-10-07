@@ -111,7 +111,7 @@ iPhone／iPad Safari 會額外載入本機固定版本的官方 Beacio SDK 2.2.0
 
 診斷頁版本 `20261007-diag8` 顯示裝置選擇倒數與「取消等待」，並在呼叫前、requestDevice 回傳時與完成／逾時時記錄狀態。選擇按鈕等待期間停用，以避免重複請求，20 秒逾時後恢復。逾時或取消後自動開啟最上層的「診斷紀錄與恢復操作」視窗，提供文字框、複製、全選與重新載入；也可按「顯示診斷紀錄」開啟。剪貼簿操作超過 1.5 秒仍未完成時，使用已全選的文字框長按並手動複製。紀錄會收集複製／重新載入按鈕上方的元素、dialog、iframe、inert 與 pointer-events 狀態，只讀取遮擋資訊，不操作或移除擴充功能的授權介面。取消僅結束網頁等待，不會撤銷擴充功能內部請求；再次測試前重新載入。如果倒數停止，紀錄是否包含「requestDevice 已回傳」可協助判斷是否卡在同步呼叫或後續 Promise。
 
-diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Multy UUID」；A 採用 beacio.com 實際 API 與選擇參數，B 只增加 Multy UUID。兩者都不連線 GATT，測試間請重新載入。若恢復視窗也不能操作，逾時時會嘗試自動儲存紀錄；另開 Safari 分頁，從網址列直接開啟 `https://gk3pro.makerkang.com/ble-diagnostic-report.html`。此頁不載入 SDK、不呼叫 BLE，讀取同網站、同瀏覽模式的上次本機紀錄。完整比對與判讀方式見 [Beacio 比對紀錄](docs/beacio-comparison.md)。
+diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Multy UUID」；A 採用 beacio.com 實際 API 與選擇參數，B 只增加 Multy UUID。兩者都不連線 GATT，測試間請重新載入。若恢復視窗也不能操作，逾時時會嘗試自動儲存紀錄；另開 Safari 分頁，從網址列直接開啟 `https://gk3pro.makerkang.com/ble-diagnostic-report.html`。此頁不載入 SDK、不呼叫 BLE，讀取同網站、同瀏覽模式的上次本機紀錄。完整比對與判讀方式見 [Beacio 比對紀錄](../beacio-comparison.md)。
 
 目前診斷版本為 `20261007-diag9`。實機 A／B 都逾時，紀錄確認 userActivation=true、navigator.beacio 已回傳 Promise，但內嵌樣式被 CSP 阻擋且 body.inert=true。更新後另開 Safari 分頁直接進入 `https://gk3pro.makerkang.com/ble-diagnostics.html?beacioStyles=1`，先測 A，重新載入同一網址後測 B。這個指定診斷網址加入 `style-src-elem 'self' 'unsafe-inline'`，只允許 style 元素；腳本、style 屬性、其他頁面與預設 CSP 維持限制。紀錄會包含測試網址與實際 CSP。若新模式成功，再依實測結果處理 iPhone 主頁；本次沒有變更主頁或韌體。
 

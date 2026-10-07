@@ -1,5 +1,52 @@
 # 01-Test、Multy 與 beacio.com 授權比對
 
+## 最終解法與可重用經驗（2026-10-07）
+
+目前主頁版本為 `20261007-ios-status14`。iPhone 的操作為 **Connect → Beacio 裝置選擇 → 選 Multy → GATT → Services → Notifications → Handshake → Connected**，不再先執行 15 秒廣播掃描。以下是本次收斂結果；後面的 diag8／diag9 等內容保留為調查歷史。
+
+### 已確認的原因與證據
+
+| 現象 | 本次證據 | 結論／處理 |
+| --- | --- | --- |
+| requestDevice 沒有可見選擇視窗，20 秒逾時 | userActivation=true、navigator.beacio 存在、同步呼叫已返回 Promise；style-src-elem／inline 違規 | 不能把無回應直接歸因於沒有 BLE 裝置。先檢查橋接與 CSP。 |
+| 複製與重新載入按鈕都不能點 | 按鈕 disabled=false，但 body.inert=true，命中元素只有 HTML | 頁面背景已停用；單純增加逾時或另一個頁內按鈕不足以恢復操作。 |
+| A 無自訂 UUID、B 增加 Multy UUID 都失敗 | 嚴格 CSP 下 A／B 都逾時；樣式相容模式 A／B 都可選 Multy 並成功返回 | CSP style 元素限制參與此選擇介面故障；Multy 自訂 UUID 本身可以授權。 |
+| 廣播清單物件直接 GATT 連線被拒 | 實機回覆 Device was not authorized | requestLEScan 許可不等於裝置 GATT 授權，必須使用 requestDevice 回傳物件。 |
+| 樣式修正後，主頁名稱篩選仍沒有視窗／no device found | 改用成功診斷 B 的 acceptAllDevices 與完整服務清單後，使用者確認 picker11 成功連線 | 此環境採用已驗證的選擇參數；沒有足夠證據宣稱所有 Beacio 名稱篩選都不支援。 |
+
+本次沒有靠更改 MAC、重置 iPhone GATT 快取、改用心率服務或重新燒錄韌體解決授權問題。01-Test 的成功提供對照，但它同時改了 UUID、MAC 與頁面來源，不能單靠這組比較判定其中一項是原因。
+
+### 最後實作
+
+1. **文件 CSP**：iOS Safari 在應用程式載入前，進入同頁 `?beacioStyles=1`。伺服器僅對主頁、index.html 與診斷 HTML 的明確相容請求加入 `style-src-elem 'self' 'unsafe-inline'`。這允許 Beacio 所需的內嵌 style 元素；保留 `script-src 'self'`，沒有放行內嵌 JavaScript、eval、外站腳本或 style 屬性。PC 預設文件使用原政策。後續若能取得穩定的樣式內容與 hash，可再評估更精確的允許方式，不預設第三方版本間 hash 不變。
+2. **API 選擇**：只在 iOS 適配器內，於使用者點擊時讀取 API；有真正 Beacio runtime 時優先 navigator.beacio，否則使用非 CDN stub 的 navigator.bluetooth。PC 原生 API 與 transport.js 不變。
+3. **授權選擇**：Connect 原始點擊內立即 requestDevice，不先 await 掃描、網路或其他非必要工作。目前 Multy 使用與成功診斷 B 相同的 acceptAllDevices／optionalServices；選到非 Multy 或沒有名稱的物件時不開始 GATT。
+4. **GATT 與協定**：只對 requestDevice 授權回傳物件執行 gatt.connect，取得 Multy 服務／特徵、啟用通知，再進行 hello、傳輸容量確認與控制權握手。裝置選擇成功、GATT 成功與應用程式可操作是不同完成階段。
+5. **介面與恢復**：主頁僅保留 BLE 標題下的當前階段，完整診斷另頁提供。逾時診斷自動儲存在 localStorage，獨立 report 頁不載入 SDK 或呼叫 BLE，避免受原分頁停用狀態影響。網頁結束等待不代表第三方選擇器真的被取消，重測前重新載入。
+
+### 下一個 iPhone／Beacio BLE 網頁的開發順序
+
+1. **先做最小連線頁**：一個 Connect 按鈕，直接 requestDevice → GATT → 服務探索。先不要加入自訂掃描清單、輪詢、重試、背景連線或多層彈窗。
+2. **先驗證正式部署來源**：HTTPS、Safari 的網站擴充功能權限、實際回應 CSP 都要檢查；beacio.com 成功不等於另一個 origin 已有裝置授權。Cloudflare 與本機開發環境的回應不可互相代替。
+3. **使用所需的服務 UUID**：optionalServices 是網站服務存取範圍，不是新增 ESP32 服務。Multy 為了對齊官網成功參數保留了標準服務清單；不能把心率／電池等標準服務當成所有應用必填條件。新專案應先驗證自己需要的服務集合。
+4. **分階段記錄**：API 是否存在／stub、API 來源、userActivation、requestDevice 同步返回、選擇 Promise 結果、GATT、服務、通知與應用握手分別記錄。錯誤發生在哪一層，再查那一層。
+5. **一次只改一個對照條件**：先比較嚴格／樣式相容 CSP；再比較標準／自訂服務；再比較無篩選／名稱篩選。每次確認完整 URL、版本與實際標頭，避免把未啟用測試模式的結果當成實驗結果。
+6. **保護既有 PC 路徑**：iOS 差異放在適配器與文件政策選擇，不替換 PC navigator.bluetooth，也不修改已正常工作的 USB／BLE 傳輸。測試真 Mac 與 Windows 觸控裝置，避免錯認成 iOS。
+7. **需要掃描再加**：requestLEScan 可用於廣播監看，但連線授權仍由 requestDevice 處理。若有即時清單，保留裝置列／按鈕，避免每筆廣播重建 DOM 中斷點擊；選取前停止廣播掃描並維持原始手勢。
+
+Beacio 官方說明 API 需要 HTTPS 與使用者手勢，啟用與授權涉及網站來源；SDK 是選用層，不應將「加入 SDK」視為必定能解決所有問題。[官方文件](https://beacio.com/docs)
+
+### 排錯優先順序
+
+- **沒有選擇視窗**：版本與完整 URL → 真正 API／stub → userActivation → CSP 違規 → body.inert／介面遮擋。
+- **Device was not authorized**：先確認物件來自 requestDevice，而非 advertisementreceived；確認是目前網站的授權。
+- **GATT 已連、服務找不到**：確認 optionalServices、韌體實際 UUID，再查 GATT 服務快取。韌體真的改過服務結構時，才優先研究 Service Changed／Database Hash。
+- **通知或握手失敗**：查特徵與訂閱、資料分段／ACK、timeout 與裝置控制權，不回頭任意更改 MAC。
+
+實機證據：使用者已確認樣式相容 A／B 選擇成功與 picker11 完整連線；目前 status14 是直接 Connect 的實作，最新 56 項自動測試通過。後續 UI 版本不可單憑自動測試宣稱所有 iPhone／Beacio 組合都已實機驗證。
+
+實作參考：[iOS 適配器](02-Multy/public/ios-ble.js)、[iOS 文件入口](02-Multy/public/ios-style-mode.js)、[文件 CSP](02-Multy/server.js)、[授權參數](02-Multy/public/beacio-reference.js)、[診斷頁](02-Multy/public/ble-diagnostics.html)、[獨立紀錄頁](02-Multy/public/ble-diagnostic-report.html)。
+
 2026-10-07 檢查本機韌體與官網當日來源。使用者確認 01-Test 心率模擬可在同一 iPhone 的 beacio.com 正常連線；Multy 可以掃描，但要求授權仍未成功，diag7 恢復視窗也無法操作。以下區分已確認差異與尚未證實的原因。
 
 ## 韌體差異
