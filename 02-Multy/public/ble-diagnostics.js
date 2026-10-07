@@ -26,7 +26,7 @@ function snapshot() {
     secureContext: isSecureContext, userAgent: navigator.userAgent,
     platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
     expectedMainAction: 'connect',
-    frontendBuild: '20261007-ios-connect13',
+    frontendBuild: '20261007-ios-status14',
     diagnosticBuild: '20261007-diag9',
     preferredAPISource: getIOSBluetooth() === navigator.beacio && navigator.beacio ? 'navigator.beacio' : 'navigator.bluetooth',
     beacioRequestDevice: typeof navigator.beacio?.requestDevice,

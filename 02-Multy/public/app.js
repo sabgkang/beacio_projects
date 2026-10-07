@@ -7,7 +7,7 @@ import { IOSBleTransport } from './ios-ble.js?v=20261007-ios-connect13';
 const $ = selector => document.querySelector(selector);
 const device = detectDevice(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
 const iosClient = usesIOSScan(navigator);
-document.documentElement.dataset.frontendBuild = '20261007-ios-connect13';
+document.documentElement.dataset.frontendBuild = '20261007-ios-status14';
 document.documentElement.dataset.bleAction = 'connect';
 document.documentElement.dataset.device = device;
 if (iosBluetooth.platform === 'ios-safari') {
@@ -25,14 +25,6 @@ const bleTransport = iosClient ? new IOSBleTransport(callbacks) : new BleTranspo
 let method = device === 'pc' ? 'serial' : 'ble';
 let transport = method === 'serial' ? serialTransport : bleTransport;
 let connecting = false;
-if (iosClient) {
-  const panel = document.createElement('section'); panel.id = 'ios-connection-details'; panel.className = 'ble-scan-results';
-  const title = document.createElement('h2'); title.textContent = 'Multy BLE connection';
-  const build = document.createElement('small'); build.textContent = 'Frontend 20261007-ios-connect13 · Connect → select → GATT';
-  const guidance = document.createElement('p'); guidance.textContent = '按 Connect 直接開啟 Beacio 裝置選擇視窗，選取 Multy 裝置後連線。選到其他裝置不會連線；授權視窗未出現時，請複製 BLE 診斷紀錄。';
-  const stages = document.createElement('pre'); stages.id = 'ios-connection-stages'; stages.setAttribute('role', 'log');
-  panel.append(title, build, guidance, stages); $('.connection').after(panel);
-}
 let selectedProtocol = 'uart';
 let selectedInstance = 1;
 let maximizedChannel = null;
@@ -292,10 +284,8 @@ function updateConnection() {
   $('#serial-port').textContent = serialTransport.label;
   $('#connect').textContent = transport.isOpen ? 'Disconnect' : 'Connect';
   $('#connect').disabled = connecting;
-  $('#connection-status').textContent = transport.state;
-  if (iosClient) {
-    $('#ios-connection-stages').textContent = bleTransport.history.map(stage => `${stage.time} ${stage.state}`).join('\n');
-  }
+  const stageLabels = { 'Connecting BLE GATT': 'GATT', 'Discovering BLE service': 'Services', 'Subscribing BLE notifications': 'Notifications', 'Handshaking': 'Handshake' };
+  $('#connection-status').textContent = iosClient ? (transport.state.startsWith('Authorizing Multy via ') ? 'Select device' : stageLabels[transport.state] || transport.state) : transport.state;
   $('.connection-status').classList.toggle('connected', transport.connected);
   $('.ready-status').textContent = transport.connected ? 'Device control acquired' : transport.state === 'Busy' ? 'Device controlled by another client' : 'No device control';
   $('.demo-note strong').textContent = method === 'serial' ? 'USB-serial · 115200 8N1' : `BLE · ${bleTransport.chunkBytes} bytes/chunk`;

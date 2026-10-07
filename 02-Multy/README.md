@@ -123,6 +123,8 @@ diag8 新增「官網流程 A：標準服務」與「官網流程 B：加入 Mul
 
 依使用者要求，目前主頁版本 `20261007-ios-connect13` 改為直接 **Connect → Beacio 選擇 Multy → Connected**。主按鈕名稱與行為都改為 Connect，直接使用已成功的 acceptAllDevices 與 Multy optionalServices，不先執行 requestLEScan、不開啟自訂掃描視窗。選取名稱以 Multy 開頭的裝置後建立 GATT、訂閱通知並握手取得控制權；取消或選到其他裝置不建立連線。連線後按鈕為 Disconnect，斷線後回到 Connect。保留 iPhone 樣式相容設定與階段紀錄，PC USB／BLE 與韌體不變。
 
+目前主頁版本 `20261007-ios-status14` 移除 iPhone 連線區與 UART／I2C／SPI 分頁之間的除錯面板。連線階段直接顯示在「iPhone · BLE」下方：Select device → GATT → Services → Notifications → Handshake → Connected；錯誤、Busy、Disconnected 同樣保留在此狀態列。獨立 BLE 診斷頁仍可由頁尾進入，PC 狀態文字與連線流程不變。
+
 ```powershell
 npm test
 # 在目前 Node 執行環境需要停用測試隔離時：
